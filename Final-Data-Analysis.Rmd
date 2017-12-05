@@ -59,7 +59,7 @@ test[factors] = lapply(test[factors], factor)
 
 #change na in surface to mean and transform
 mean.surface.test=mean(test$Surface[!is.na(test$Surface)])
-test$Surface[is.na(test$Surface)]=0
+test$Surface[is.na(test$Surface)]=mean.surface.test
 
 
 if(FALSE){
@@ -120,7 +120,7 @@ paintings_test[var.change] = lapply(paintings_test[var.change], factor)
 
 mean.surface=mean(paintings_test$Surface[!is.na(paintings_test$Surface)])
 
-paintings_test$Surface[is.na(paintings_test$Surface)]=0
+paintings_test$Surface[is.na(paintings_test$Surface)]=mean.surface
 
 predictions = as.data.frame(
   exp(predict(model1, newdata=paintings_test, 
