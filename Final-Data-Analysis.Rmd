@@ -114,6 +114,8 @@ paintings_test[var.change] = lapply(paintings_test[var.change], factor)
 
 paintings_test=paintings_test[paintings_test$position<1,]
 
+paintings_test=paintings_test%>%
+  filter(!is.na(Surface))
 
 predictions = as.data.frame(
   exp(predict(model1, newdata=paintings_test, 
