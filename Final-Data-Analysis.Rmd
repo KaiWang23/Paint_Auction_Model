@@ -112,10 +112,7 @@ var.change=c("year","diff_origin","artistliving","engraved","prevcoll","paired",
 
 paintings_test[var.change] = lapply(paintings_test[var.change], factor)
 
-paintings_test=paintings_test[paintings_test$position<1,]
-
-paintings_test=paintings_test%>%
-  filter(!is.na(Surface))
+paintings_test$Surface[is.na(paintings_test$Surface)]=0
 
 predictions = as.data.frame(
   exp(predict(model1, newdata=paintings_test, 
