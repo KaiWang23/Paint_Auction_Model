@@ -47,16 +47,20 @@ Using EDA and any numerical summaries get to know the data -  identify what you 
 
 ```{r}
 test=paintings_train%>%
-  select(-lot,-price,-authorstyle,-author,-Height_in,-Width_in,-Diam_in,-Surface_Rect,-Surface_Rnd,-material,-materialCat,-subject,-count,-other,-winningbidder,-Interm,-authorstandard,-school_pntg,-winningbiddertype,-Shape)
+  select(-sale,-lot,-price,-authorstyle,-author,-Height_in,-Width_in,-Diam_in,-Surface_Rect,-Surface_Rnd,-material,-materialCat,-subject,-count,-other,-winningbidder,-Interm,-authorstandard,-school_pntg,-winningbiddertype,-Shape)
 
 
-factors=c("sale","dealer","year","origin_author","origin_cat","diff_origin","mat","endbuyer","type_intermed","artistliving","engraved","original","prevcoll","othartist","paired","figures","finished","lrgfont","relig","landsALL","lands_sc","lands_elem","lands_figs","lands_ment","arch","mytho","peasant","othgenre","singlefig","portrait","still_life","discauth","history","allegory","pastorale")
+factors=c("dealer","year","origin_author","origin_cat","diff_origin","mat","endbuyer","type_intermed","artistliving","engraved","original","prevcoll","othartist","paired","figures","finished","lrgfont","relig","landsALL","lands_sc","lands_elem","lands_figs","lands_ment","arch","mytho","peasant","othgenre","singlefig","portrait","still_life","discauth","history","allegory","pastorale")
 
 test[factors] = lapply(test[factors], factor)
 
-test=test[test$position<1,]
+#test=test[test$position<1,]
 #test$nfigures=log(test$nfigures)
-#test$Surface=log(test$Surface)
+
+#change na in surface to mean and transform
+mean.surface.test=mean(test$Surface[!is.na(test$Surface)])
+test$Surface[is.na(test$Surface)]=0
+
 
 if(FALSE){
 ##not related with postition
@@ -96,6 +100,8 @@ In the first model predict the auction price `price` using the transformation `l
 ```{r model1, echo=TRUE}
 #model1 = lm(logprice ~ 1, data=paintings_train)
 
+nrow(test)
+
 model1 = step(lm(logprice~.,data=test),k=log(nrow(test)),direction="backward",trace=0)
 results.aic=summary(model1)
 print(summary(results.aic))
@@ -114,7 +120,7 @@ paintings_test[var.change] = lapply(paintings_test[var.change], factor)
 
 mean.surface=mean(paintings_test$Surface[!is.na(paintings_test$Surface)])
 
-paintings_test$Surface[is.na(paintings_test$Surface)]=mean.surface
+paintings_test$Surface[is.na(paintings_test$Surface)]=0
 
 predictions = as.data.frame(
   exp(predict(model1, newdata=paintings_test, 
