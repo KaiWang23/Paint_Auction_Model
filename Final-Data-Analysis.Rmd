@@ -6,6 +6,7 @@ output: html_notebook
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
+library(dplyr)
 ```
 
 
@@ -44,18 +45,76 @@ The Code Book is in the file `paris_paintings.md` provides more information abou
 
 Using EDA and any numerical summaries get to know the data -  identify what you might consider the 10 best variables for predicting `logprice` using scatterplots with other variables represented using colors or symbols, scatterplot matrices or conditioning plots.  
 
+```{r}
+test=paintings_train%>%
+  select(-lot,-price,-authorstyle,-author,-Height_in,-Width_in,-Diam_in,-Surface_Rect,-Surface_Rnd,-material,-materialCat,-subject,-count,-other,-winningbidder,-Interm,-authorstandard,-sale,-school_pntg,-winningbiddertype,-Shape)
+
+
+factors=c("dealer","year","origin_author","origin_cat","diff_origin","mat","endbuyer","type_intermed","artistliving","engraved","original","prevcoll","othartist","paired","figures","finished","lrgfont","relig","landsALL","lands_sc","lands_elem","lands_figs","lands_ment","arch","mytho","peasant","othgenre","singlefig","portrait","still_life","discauth","history","allegory","pastorale")
+
+test[factors] = lapply(test[factors], factor)
+
+test=test[test$position<1,]
+#test$nfigures=log(test$nfigures)
+#test$Surface=log(test$Surface)
+
+if(FALSE){
+##not related with postition
+ggpairs(data = test[c( 2,9)],
+mapping = ggplot2::aes(y = logprice),cardinality_threshold = 20,
+lower = list(continuous = wrap("points", alpha = 0.3), combo = wrap("dot_no_facet", alpha = 0.4))
+)
+
+#surface unrelated
+test$Surface=log(test$Surface)
+ggpairs(data = test[c( 16,9)],
+mapping = ggplot2::aes(y = logprice),cardinality_threshold = 20,
+lower = list(continuous = wrap("points", alpha = 0.3), combo = wrap("dot_no_facet", alpha = 0.4))
+)
+
+#if figure =1, seems a positive linear relationship
+test$nfigures=log(test$nfigures)
+ggpairs(data = test[c( 18,9)],
+mapping = ggplot2::aes(y = logprice),cardinality_threshold = 20,
+lower = list(continuous = wrap("points", alpha = 0.3), combo = wrap("dot_no_facet", alpha = 0.4))
+)
+
+#test
+ggpairs(data = test[c(34,9)],
+mapping = ggplot2::aes(y = logprice),cardinality_threshold = 20,
+lower = list(continuous = wrap("points", alpha = 0.3), combo = wrap("dot_no_facet", alpha = 0.4))
+)
+}
+
+```
+
 ### Build your first model
 
 In the first model predict the auction price `price` using the transformation `logprice` using at least 10 up to 20 predictors and any interactions to build a model using linear regression.  You may use stepwise model selection to simplify the model using AIC and/or BIC.  For reference, we will fit the null model to initialize the leaderboard, but replace model1 with your recommended model.
 
 
 ```{r model1, echo=TRUE}
-model1 = lm(logprice ~ 1, data=paintings_train)
+#model1 = lm(logprice ~ 1, data=paintings_train)
+
+model1 = step(lm(logprice~.,data=test),k=2,direction="backward",trace=0)
+results.aic=summary(model1)
+print(summary(results.aic))
+
+results.aic$coefficients
+results.aic$r.squared
 ```
 
 
 Save predictions and intervals
 ```{r predict-model1, echo=FALSE}
+
+var.change=c("year","diff_origin","artistliving","engraved","prevcoll","paired","finished","lrgfont","relig","landsALL","lands_sc","othgenre","portrait","discauth")
+
+paintings_test[var.change] = lapply(paintings_test[var.change], factor)
+
+paintings_test=paintings_test[paintings_test$position<1,]
+
+
 predictions = as.data.frame(
   exp(predict(model1, newdata=paintings_test, 
               interval = "pred")))
