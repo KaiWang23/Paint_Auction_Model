@@ -7,6 +7,7 @@ output: html_notebook
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE)
 library(dplyr)
+library(GGally)
 ```
 
 
@@ -33,7 +34,7 @@ In your write up your code should be hidden (`echo = FALSE`) so that your docume
 ### Read in Training Data
 
 To get started read in the training data:
-```{r read-data, echo=TRUE}
+```{r read-data, echo=FALSE}
 load("paintings_train.Rdata")
 ```
 
@@ -45,7 +46,7 @@ The Code Book is in the file `paris_paintings.md` provides more information abou
 
 Using EDA and any numerical summaries get to know the data -  identify what you might consider the 10 best variables for predicting `logprice` using scatterplots with other variables represented using colors or symbols, scatterplot matrices or conditioning plots.  
 
-```{r}
+```{r echo=FALSE}
 test=paintings_train%>%
   select(-sale,-lot,-price,-authorstyle,-author,-Height_in,-Width_in,-Diam_in,-Surface_Rect,-Surface_Rnd,-material,-materialCat,-subject,-count,-other,-winningbidder,-Interm,-authorstandard,-school_pntg,-winningbiddertype,-Shape)
 
