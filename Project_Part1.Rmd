@@ -1,0 +1,37 @@
+---
+title: "Part1 Analysis"
+author: " Team: SparkR"
+date: "2017/12/7"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+1. Introduction: Summary of problem and objectives (5 points)
+
+Late 18th century Paris has witnessed countless number of auctions on fine arts and paintings from countries across Europe. Our project utilizes this dataset from auction in 18th century Paris with details of paintings, authors and auctions. 
+We hope to build a OLS model to predict the log of price fetched at auction. Since our dataset contains 59 variables, we would want to perform variable selection to build a parsimonious model with good performance in critiria such as RMSE, etc. 
+In addition to that, some variables have a lot of missing values and typos. We would need to perform some sort of missing imputation, e.g. assume MCAR and use MICE package. For typos, we would recode them to appropriate values.
+From the correlation martices, we find some highly-correlated variables, so we dicide to not include some of the variables in our model to aviod multicollinearity.
+
+2. Exploratory data analysis (10 points): must include three correctly labeled graphs and an explanation that highlight the most important features that went into your model building.
+
+
+
+3. Development and assessment of an initial model (10 points)
+
+* Initial model: must include a summary table and an explanation/discussion for variable selection and overall amount of variation explained. 
+
+* Model selection: must include a discussion
+
+* Residual: must include residual plot(s) and a discussion.  
+
+* Variables: must include table of coefficients and CI
+
+3. Summary and Conclusions (10 points)
+
+What is the (median) price for the "baseline" category if there are categorical or dummy variables in the model (add CI's)?  (be sure to include units!) Highlight important findings and potential limitations of your model.  Does it appear that interactions are important?  What are the most important variables and/or interactions?  Provide interprations of how the most important variables influence the (median) price giving a range (CI).  Correct interpretation of coefficients for the log model desirable for full points.
+
+Provide recommendations for the art historian about features or combination of features to look for to find the most valuable paintings.
