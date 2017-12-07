@@ -47,10 +47,10 @@ Using EDA and any numerical summaries get to know the data -  identify what you 
 
 ```{r}
 test=paintings_train%>%
-  select(-sale,-lot,-price,-authorstyle,-author,-Height_in,-Width_in,-Diam_in,-Surface_Rect,-Surface_Rnd,-material,-materialCat,-subject,-count,-other,-winningbidder,-Interm,-authorstandard,-school_pntg,-winningbiddertype,-Shape)
+  select(-sale,-year,-lot,-price,-authorstyle,-author,-Height_in,-Width_in,-Diam_in,-Surface_Rect,-Surface_Rnd,-material,-materialCat,-subject,-count,-other,-winningbidder,-Interm,-authorstandard,-school_pntg,-winningbiddertype,-Shape)
 
 
-factors=c("dealer","year","origin_author","origin_cat","diff_origin","mat","endbuyer","type_intermed","artistliving","engraved","original","prevcoll","othartist","paired","figures","finished","lrgfont","relig","landsALL","lands_sc","lands_elem","lands_figs","lands_ment","arch","mytho","peasant","othgenre","singlefig","portrait","still_life","discauth","history","allegory","pastorale")
+factors=c("dealer","origin_author","origin_cat","diff_origin","mat","endbuyer","type_intermed","artistliving","engraved","original","prevcoll","othartist","paired","figures","finished","lrgfont","relig","landsALL","lands_sc","lands_elem","lands_figs","lands_ment","arch","mytho","peasant","othgenre","singlefig","portrait","still_life","discauth","history","allegory","pastorale")
 
 test[factors] = lapply(test[factors], factor)
 
