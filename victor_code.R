@@ -142,3 +142,116 @@ mean.surface$Surface_Rect = log(mean.surface$Surface_Rect)
 predictions = as.data.frame(
   exp(predict(lm1, newdata=mean.surface, 
               interval = "pred")))
+save(predictions, file="predict-test.Rdata")
+############
+https://cran.r-project.org/web/packages/My.stepwise/My.stepwise.pdf
+https://www.rdocumentation.org/packages/randomForestSRC/versions/2.5.1/topics/find.interaction
+
+
+
+
+
+test=paintings_train%>%
+  dplyr::select(-sale,-lot,-price,-authorstyle,-author,-Diam_in,-Surface_Rect,-Surface_Rnd,-material,-materialCat,-subject,-count,-other,-winningbidder,-authorstandard,-school_pntg,-winningbiddertype,-Shape)
+
+
+factors=c("dealer","year","origin_author","origin_cat","diff_origin","mat","endbuyer","type_intermed","artistliving","engraved","original","prevcoll","othartist","paired","figures","finished","lrgfont","relig","landsALL","lands_sc","lands_elem","lands_figs","lands_ment","arch","mytho","peasant","othgenre","singlefig","portrait","still_life","discauth","history","allegory","pastorale", "Interm")
+
+test[factors] = lapply(test[factors], factor)
+
+#test=test[test$position<1,]
+#test$nfigures=log(test$nfigures)
+
+#change na in surface to mean and transform
+# mean.surface.test=mean(test$Surface[!is.na(test$Surface)])
+# test$Surface[is.na(test$Surface)]=mean.surface.test
+
+imputed_Data <- mice(test, m=5, maxit = 50, method = 'pmm', seed = 500)
+
+test$Surface[is.na(test$Surface)] = imputed_Data$imp$Surface[1][,1]
+test$Width_in[is.na(test$Width_in)] = imputed_Data$imp$Width_in[1][,1]
+test$Height_in[is.na(test$Height_in)] = imputed_Data$imp$Height_in[1][,1]
+test$Interm[is.na(test$Interm)] = imputed_Data$imp$Interm[1][,1]
+
+
+
+if(FALSE){
+  ##not related with postition
+  ggpairs(data = test[c( 2,9)],
+          mapping = ggplot2::aes(y = logprice),cardinality_threshold = 20,
+          lower = list(continuous = wrap("points", alpha = 0.3), combo = wrap("dot_no_facet", alpha = 0.4))
+  )
+  
+  #surface unrelated
+  test$Surface=log(test$Surface)
+  ggpairs(data = test[c( 16,9)],
+          mapping = ggplot2::aes(y = logprice),cardinality_threshold = 20,
+          lower = list(continuous = wrap("points", alpha = 0.3), combo = wrap("dot_no_facet", alpha = 0.4))
+  )
+  
+  #if figure =1, seems a positive linear relationship
+  test$nfigures=log(test$nfigures)
+  ggpairs(data = test[c( 18,9)],
+          mapping = ggplot2::aes(y = logprice),cardinality_threshold = 20,
+          lower = list(continuous = wrap("points", alpha = 0.3), combo = wrap("dot_no_facet", alpha = 0.4))
+  )
+  
+  #test
+  ggpairs(data = test[c(34,9)],
+          mapping = ggplot2::aes(y = logprice),cardinality_threshold = 20,
+          lower = list(continuous = wrap("points", alpha = 0.3), combo = wrap("dot_no_facet", alpha = 0.4))
+  )
+}
+
+```
+
+### Build your first model
+
+In the first model predict the auction price `price` using the transformation `logprice` using at least 10 up to 20 predictors and any interactions to build a model using linear regression.  You may use stepwise model selection to simplify the model using AIC and/or BIC.  For reference, we will fit the null model to initialize the leaderboard, but replace model1 with your recommended model.
+
+
+```{r model1, echo=TRUE}
+#model1 = lm(logprice ~ 1, data=paintings_train)
+
+nrow(test)
+
+model1 = step(lm(logprice~.,data=test),k=log(nrow(test)),direction="backward",trace=0)
+results.aic=summary(model1)
+print(summary(results.aic))
+
+results.aic$coefficients
+results.aic$r.squared
+```
+
+
+Save predictions and intervals
+```{r predict-model1, echo=FALSE}
+load("paintings_test.Rdata")
+var.change=c("sale","dealer","year","origin_author","origin_cat","diff_origin","mat","endbuyer","type_intermed","artistliving","engraved","original","prevcoll","othartist","paired","figures","finished","lrgfont","relig","landsALL","lands_sc","lands_elem","lands_figs","lands_ment","arch","mytho","peasant","othgenre","singlefig","portrait","still_life","discauth","history","allegory","pastorale")
+# test$Surface = test$Surface +1
+# (College.trans <- test %>% dplyr::select(Surface) %>% 
+#     as.matrix() %>% powerTransform() %>% coef())
+# 
+# mod1 = lm(formula = logprice ~ dealer + year + origin_author + diff_origin + 
+#     endbuyer + type_intermed + log(Surface) + nfigures + engraved + 
+#     prevcoll + paired + finished + lrgfont + landsALL + lands_sc + 
+#     othgenre + discauth, data = test)
+
+imputed_Data1 <- mice(paintings_test, m=5, maxit = 50, method = 'pmm', seed = 500)
+paintings_test[var.change] = lapply(paintings_test[var.change], factor)
+
+paintings_test$Width_in[is.na(paintings_test$Width_in)] = imputed_Data1$imp$Width_in[1][,1]
+
+
+# mean.surface=mean(paintings_test$Surface[!is.na(paintings_test$Surface)])
+# 
+# paintings_test$Surface[is.na(paintings_test$Surface)]=mean.surface
+
+
+#paintings_test$Surface = log(paintings_test$Surface+1)
+
+
+predictions = as.data.frame(
+  exp(predict(model1, newdata=paintings_test, 
+              interval = "pred")))
+save(predictions, file="predict-test.Rdata")
