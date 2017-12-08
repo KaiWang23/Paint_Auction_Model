@@ -21,18 +21,9 @@ From the correlation martices, we find some highly-correlated variables, so we d
 
 2. Exploratory data analysis (10 points): must include three correctly labeled graphs and an explanation that highlight the most important features that went into your model building.
 
+2. Exploratory data analysis (10 points): must include three correctly labeled graphs and an explanation that highlight the most important features that went into your model building.
 
-
-3. Development and assessment of an initial model (10 points)
-
-* Initial model: must include a summary table and an explanation/discussion for variable selection and overall amount of variation explained. 
-
-* Model selection: must include a discussion
-
-* Residual: must include residual plot(s) and a discussion.  
-
-* Variables: must include table of coefficients and CI
-```{r model1, echo=FALSE}
+```{r}
 ###Function to clean the dataset
 
 #load the training data set
@@ -77,7 +68,114 @@ clean = function(df, NA.omit=F){
 
 
 train = clean(paintings_train, NA.omit = T)
+```
 
+
+
+For this part, we intially have found some interaction between predictors from graph perspective; however, in our further model selection process and trials and error.
+
+First, we choose to plot boxplots for the variables that are highly correlated with response `logprice`
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(reshape2)
+library(tidyr)
+
+train_sub1 = train %>% select(logprice, dealer, endbuyer, type_intermed, lrgfont)
+
+
+df1 = train %>% 
+  select(logprice, dealer) 
+
+df2 = train %>% 
+  select(logprice, endbuyer)
+
+df3 = train %>% 
+  select(logprice, type_intermed)
+
+df4 = train %>% 
+  select(logprice, lrgfont) 
+
+# df1.final = rbind(df1,df2,df3, df4)
+# 
+# ggplot(train, aes(x=type, y= logprice)) +
+#   facet_wrap(~type) +
+#   geom_boxplot()
+```
+
+```{r}
+require(gridExtra)
+require(grid)
+
+g1 = ggplot(df1, aes(x=dealer, y= logprice)) +
+  geom_boxplot(color="#999999",  alpha=0.8)
+g2 = ggplot(df2, aes(x=endbuyer, y= logprice)) +
+  geom_boxplot(color="#E69F00",  alpha=0.8)
+g3 = ggplot(df3, aes(x=type_intermed, y= logprice)) +
+  geom_boxplot(color="#56B4E9",  alpha=0.8)
+g4 = ggplot(df4, aes(x=lrgfont, y= logprice)) +
+  geom_boxplot(color="purple",  alpha=0.8)
+
+grid.arrange(g1, g2,g3,g4, ncol=2, top=textGrob("Boxplot for 4 most 'significant' variables", gp=gpar(fontsize=15,font=8)))
+```
+
+As we can see, for these four factor variables, each level has differernt means and distributions across, for examle, doing business with dealer R may not be a good deal, since they tend to have higher price, but it could also be the case that they tend to sell higher value painting; also, collectors tend bid higher price compared with other end buyers; from type of inttype of intermediary perspective, experts tend to have higher price in mind,(becasue they know the true intrinsic value?), lastly, if dealer have more information about the paintings, the final price will be higher as well. Therefore, it is likely human factors(especially type of dealer) play an important role on deciding the final bidding price, and we will expect they will "survive" after model selection process.
+
+
+Second, we try to find  some interaction effect between predictors using tree models.
+
+```{r}
+# library(tree)
+# tree.vote =tree(logprice ~ ., data= train)
+# summary(tree.vote)
+# plot(tree.vote)
+# text(tree.vote, cex=.75)
+# 
+# #Pruning
+# set.seed(2)
+# cv.vote = cv.tree(tree.vote, FUN=prune.tree)
+# plot(cv.vote$size,cv.vote$dev, type="b")
+# prune.vote = prune.tree(tree.vote ,best =11)
+# plot(prune.vote)
+# text(prune.vote, cex=.75)
+suppressMessages(library(RColorBrewer))
+
+
+df5 = paintings_train %>% 
+  select(price, year, school_pntg) %>% 
+  mutate(year = as.character(year)) %>% 
+  mutate(year = as.numeric(year)) %>%
+  mutate(price = as.numeric(price)) %>% 
+  filter(!is.na(price)) %>% 
+  group_by(year, school_pntg) %>% 
+  summarize(average = sum(price)/n())%>% 
+  group_by(school_pntg)
+
+
+ggplot(data = df5, aes(x = year, y= average, col = school_pntg)) +
+  geom_line(size = 1.5) +
+  scale_color_brewer(type = 'div', palette = 'Spectral')+
+  xlab("Year of sale")+
+  ylab("Average price")+
+  ggtitle("Average price of differnt school of paintings on each year") +
+  labs(col = "School of Paintings") +
+  theme_bw()
+
+```
+
+Since plotting average logprice, all the line lie between each other, we decide to plot price in original scale instead. As you can see from the plot, Dutch/Flemish and French school of paintings tend to have a higher average price in the year between 1765 and 1778, with the maximum across the group, Dutch/Flemish has the average price over 600 dollars for the paintings in the year around 1770(possibly becasue of the decease of some well-known artists);Even though Italian has lowever in the earlier year, they do have higher price in post-1777 era. With all these observations, it suggests there will be "some" interaction effect between  `school_pntg` and `year` that affect the overall price of paintings.
+
+3. Development and assessment of an initial model (10 points)
+
+* Initial model: must include a summary table and an explanation/discussion for variable selection and overall amount of variation explained. 
+
+* Model selection: must include a discussion
+
+* Residual: must include residual plot(s) and a discussion.  
+
+* Variables: must include table of coefficients and CI
+```{r model1, echo=FALSE}
 model1 = lm(logprice ~ 1+., data = train)
 
 model1 = step(model1, k=log(nrow(train)), trace = 0)
