@@ -8,6 +8,7 @@ output: pdf_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(dplyr)
+library(knitr)
 ```
 
 1. Introduction: Summary of problem and objectives (5 points)
@@ -31,7 +32,7 @@ From the correlation martices, we find some highly-correlated variables, so we d
 * Residual: must include residual plot(s) and a discussion.  
 
 * Variables: must include table of coefficients and CI
-```{r model1, echo=TRUE}
+```{r model1, echo=FALSE}
 ###Function to clean the dataset
 
 #load the training data set
@@ -86,14 +87,22 @@ results.bic$coefficients
 train=clean(paintings_train, NA.omit = F)
 model1 = lm(logprice~1 + Surface + dealer + endbuyer + diff_origin + type_intermed + engraved + mat_recode+school_pntg_recode+paired + lrgfont + lands_sc + othgenre + discauth + othartist+still_life,
     data = train)
+```
 
-summary(model1)
+```{r echo=FALSE}
+#residual plots
+par(mfrow = c(2,2))
+plot(model1, c(1:4))
 ```
 
 
-Through step function we find a "violent" model just using according to some criterion.
+```{r echo=FALSE}
+#coefficients and CI
+CI = cbind(model1$coefficients,confint(model1))
+colnames(CI) = c("coefficient","2.5%","97.5%")
+kable(CI)
+```
 
-Save predictions and intervals
 ```{r predict-model1, echo=FALSE}
 load("paintings_test.Rdata")
 test =clean(paintings_test, NA.omit = F)
@@ -109,3 +118,8 @@ save(predictions, file="predict-test.Rdata")
 What is the (median) price for the "baseline" category if there are categorical or dummy variables in the model (add CI's)?  (be sure to include units!) Highlight important findings and potential limitations of your model.  Does it appear that interactions are important?  What are the most important variables and/or interactions?  Provide interprations of how the most important variables influence the (median) price giving a range (CI).  Correct interpretation of coefficients for the log model desirable for full points.
 
 Provide recommendations for the art historian about features or combination of features to look for to find the most valuable paintings.
+
+```{r}
+
+```
+
