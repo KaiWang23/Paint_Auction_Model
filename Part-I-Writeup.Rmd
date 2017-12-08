@@ -1,0 +1,102 @@
+---
+title: "Part1 Analysis"
+author: "Team: SparkR"
+date: "2017/12/7"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+1. Introduction: Summary of problem and objectives (5 points)
+
+Late 18th century Paris has witnessed countless number of auctions on fine arts and paintings from countries across Europe. Our project utilizes this dataset from auction in 18th century Paris with details of paintings, authors and auctions. 
+We hope to build a OLS model to predict the log of price fetched at auction. Since our dataset contains 59 variables, we would want to perform variable selection to build a parsimonious model with good performance in critiria such as RMSE, etc. 
+In addition to that, some variables have a lot of missing values and typos. We would need to perform some sort of missing imputation, e.g. assume MCAR and use MICE package. For typos, we would recode them to appropriate values.
+From the correlation martices, we find some highly-correlated variables, so we dicide to not include some of the variables in our model to aviod multicollinearity.
+
+
+2. Exploratory data analysis (10 points): must include three correctly labeled graphs and an explanation that highlight the most important features that went into your model building.
+
+
+
+3. Development and assessment of an initial model (10 points)
+
+* Initial model: must include a summary table and an explanation/discussion for variable selection and overall amount of variation explained. 
+
+* Model selection: must include a discussion
+
+* Residual: must include residual plot(s) and a discussion.  
+
+* Variables: must include table of coefficients and CI
+
+```{r model1, echo=FALSE}
+load("paintings_train.Rdata")
+data_clean = function(x, train.omit=T){
+   x = x %>% 
+     select(-c(sale, price, count, subject, winningbidder, winningbiddertype, authorstandard, authorstyle, author, Height_in, Width_in, Surface_Rect, Diam_in, Surface_Rnd)) %>%
+     mutate(lot = as.numeric(lot))
+  x1 = x[, c(9,1,2, 15,19, 3:8, 10:13, 16:18, 20:ncol(x),14)]
+  x1$SurfaceNA = ifelse(is.na(x1$Surface), 1, 0)
+  x1$IntermNA = ifelse(is.na(x1$Interm), 1, 0)
+  
+  x1 = x1 %>%
+  mutate(mat_recode = ifelse(mat %in% c("a", "bc", "c"), "metal",
+                          ifelse(mat %in% c("al", "ar", "m"), "stone",
+                                ifelse(mat %in% c("co", "bt", "t"), "canvas",
+                                       ifelse(mat %in% c("p", "ca"), "paper",
+                                              ifelse(mat %in% c("b"), "wood",
+                                                     ifelse(mat %in% c("o", "e", "v"), "other",
+                                                            ifelse(mat %in% c("n/a", ""), "na",
+                                                                   "na"))))))))
+  
+  x1 = x1 %>%
+  mutate(shape_recode = ifelse(Shape == ""| Shape==0, "Not Available",
+                            ifelse(Shape == "ovale", "oval",
+                                  ifelse(Shape == "ronde", "round",
+                                         ifelse(Shape == "octogon", "octagon", Shape)))))
+  
+  x1[is.na(x1$Surface), 4] <- 0
+  
+  for (j in 6:ncol(x1)){
+  x1[, j] <- as.factor(x1[, j])
+  }
+  
+  
+  
+  if(train.omit==T){
+    x1 <- na.omit(x1)
+  }
+  
+  return(x1) 
+}
+train = data_clean(paintings_train, train.omit = F)
+model1 = lm(logprice ~ 1+., data = train)
+model1 = step(model1, k=log(nrow(train)), trace = 0)
+model1 = lm(logprice~1 + Surface + dealer + 
+    origin_cat + diff_origin + type_intermed + engraved + mat_recode+dealer:origin_cat+dealer:diff_origin+
+    paired + lrgfont + lands_sc + othgenre + discauth + othartist+ SurfaceNA+IntermNA+still_life, 
+    data = x1)
+summary(model1)
+```
+
+
+Through step function we find a "violent" model just using according to some criterion.
+
+Save predictions and intervals
+```{r predict-model1, echo=FALSE}
+load("paintings_test.Rdata")
+test =  data_clean(paintings_test, train.omit = F)
+
+predictions = as.data.frame(
+  exp(predict(model1, newdata=test, 
+              interval = "pred")))
+save(predictions, file="predict-test.Rdata")
+```
+
+4. Summary and Conclusions (10 points)
+
+What is the (median) price for the "baseline" category if there are categorical or dummy variables in the model (add CI's)?  (be sure to include units!) Highlight important findings and potential limitations of your model.  Does it appear that interactions are important?  What are the most important variables and/or interactions?  Provide interprations of how the most important variables influence the (median) price giving a range (CI).  Correct interpretation of coefficients for the log model desirable for full points.
+
+Provide recommendations for the art historian about features or combination of features to look for to find the most valuable paintings.
