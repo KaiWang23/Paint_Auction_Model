@@ -78,7 +78,7 @@ data_clean = function(x, train.omit=T){
 train = data_clean(paintings_train, train.omit = F)
 #model1 = lm(logprice ~ 1+., data = train)
 #model1 = step(model1, k=log(nrow(train)), trace = 0)
-model1 = lm(logprice~1 + Surface + dealer + endbuyer + diff_origin + type_intermed + engraved + mat_recode+school_pntg_recode+paired + lrgfont + lands_sc + othgenre + discauth + othartist+still_life+dealer:year, 
+model1 = lm(logprice~1 + Surface + dealer + endbuyer + diff_origin + type_intermed + engraved + mat_recode+school_pntg_recode+paired + lrgfont + lands_sc + othgenre + discauth + othartist+still_life, 
     data = train)
 
 summary(model1)
