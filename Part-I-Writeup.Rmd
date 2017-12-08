@@ -6,9 +6,13 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
-library(dplyr)
-library(knitr)
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+suppressMessages(library(ggplot2))
+suppressMessages(library(dplyr))
+suppressMessages(library(reshape2))
+suppressMessages(library(tidyr))
+suppressMessages(library(gridExtra))
+suppressMessages(library(grid))
 ```
 
 1. Introduction: Summary of problem and objectives (5 points)
@@ -74,11 +78,6 @@ For this part, we intially have found some interaction between predictors from g
 First, we choose to plot boxplots for the variables that are highly correlated with response `logprice`
 
 ```{r echo=FALSE, warning=FALSE}
-suppressMessages(library(ggplot2))
-suppressMessages(library(dplyr))
-suppressMessages(library(reshape2))
-suppressMessages(library(tidyr))
-
 train_sub1 = train %>% select(logprice, dealer, endbuyer, type_intermed, lrgfont)
 
 
@@ -101,10 +100,8 @@ df4 = train %>%
 #   geom_boxplot()
 ```
 
+<<<<<<< HEAD
 ```{r echo=FALSE, warning=FALSE}
-suppressMessages(require(gridExtra))
-suppressMessages(require(grid))
-
 g1 = ggplot(df1, aes(x=dealer, y= logprice)) +
   geom_boxplot(color="#999999",  alpha=0.8)
 g2 = ggplot(df2, aes(x=endbuyer, y= logprice)) +
@@ -114,9 +111,10 @@ g3 = ggplot(df3, aes(x=type_intermed, y= logprice)) +
 g4 = ggplot(df4, aes(x=lrgfont, y= logprice)) +
   geom_boxplot(color="purple",  alpha=0.8)
 
-grid.arrange(g1, g2,g3,g4, ncol=2, top=textGrob("Boxplot for 4 most 'significant' variables", gp=gpar(fontsize=15,font=8)))
+grid.arrange(g1, g2,g3,g4, ncol=2, top=textGrob("Boxplot for 4 most 'significant' variables", gp=gpar(fontsize=13,font=8)))
 ```
 
+<<<<<<< HEAD
 As we can see, for these four factor variables, each level has differernt means and distributions across, for examle, doing business with dealer R may not be a good deal, since they tend to have higher price, but it could also be the case that they tend to sell higher value painting; also, collectors tend bid higher price compared with other end buyers; from type of inttype of intermediary perspective, experts tend to have higher price in mind,(becasue they know the true intrinsic value?), lastly, if dealer have more information about the paintings, the final price will be higher as well. Therefore, it is likely human factors(especially type of dealer) play an important role on deciding the final bidding price, and we will expect they will "survive" after model selection process.
 
 
@@ -162,6 +160,7 @@ ggplot(data = df5, aes(x = year, y= average, col = school_pntg)) +
 ```
 
 Since plotting average logprice, all the line lie between each other, we decide to plot price in original scale instead. As you can see from the plot, Dutch/Flemish and French school of paintings tend to have a higher average price in the year between 1765 and 1778, with the maximum across the group, Dutch/Flemish has the average price over 600 dollars for the paintings in the year around 1770(possibly becasue of the decease of some well-known artists);Even though Italian has lowever in the earlier year, they do have higher price in post-1777 era. With all these observations, it suggests there will be "some" interaction effect between  `school_pntg` and `year` that affect the overall price of paintings.
+
 
 3. Development and assessment of an initial model (10 points)
 
