@@ -32,53 +32,59 @@ From the correlation martices, we find some highly-correlated variables, so we d
 
 * Variables: must include table of coefficients and CI
 ```{r model1, echo=TRUE}
+###Function to clean the dataset
+
+#load the training data set
 load("paintings_train.Rdata")
-data_clean = function(x, train.omit=T){
-   x = x %>% 
-     select(-c(sale, price, count, subject, winningbidder, winningbiddertype, authorstandard, authorstyle, author, Height_in, Width_in, Surface_Rect, Diam_in, Surface_Rnd)) %>%
-     mutate(lot = as.numeric(lot))
-  x1 = x[, c(9,1,2, 15,19, 3:8, 10:13, 16:18, 20:ncol(x),14)]
-  x1$SurfaceNA = ifelse(is.na(x1$Surface), 1, 0)
-  x1$Surface=log(x1$Surface+1)
-  
-  
-  x1$IntermNA = ifelse(is.na(x1$Interm), 1, 0)
-  
-  x1 = x1 %>%
-  mutate(mat_recode = ifelse(mat %in% c("a", "bc", "c"), "metal",
+
+
+clean = function(df, NA.omit=F){
+   df = df %>% 
+     select(-c(sale, price, count, subject, winningbidder, winningbiddertype, authorstandard, authorstyle, author, Height_in, Width_in, Surface_Rect, Diam_in, Surface_Rnd,material,materialCat)) %>%
+     mutate(lot = as.numeric(lot)) %>%
+     mutate(mat_recode = ifelse(mat %in% c("a", "bc", "c"), "metal",
                           ifelse(mat %in% c("al", "ar", "m"), "stone",
                                 ifelse(mat %in% c("co", "bt", "t"), "canvas",
                                        ifelse(mat %in% c("p", "ca"), "paper",
                                               ifelse(mat %in% c("b"), "wood",
                                                      ifelse(mat %in% c("o", "e", "v"), "other",
                                                             ifelse(mat %in% c("n/a", ""), "na",
-                                                                   "na"))))))))
-  
-  
-  x1 = x1 %>%
-  mutate(school_pntg_recode = ifelse(school_pntg %in% c("A", "G", "S"), "other",school_pntg))
+                                                                   "na")))))))) %>%
+     mutate(school_pntg_recode = ifelse(school_pntg %in% c("A", "G", "S"), "other",school_pntg)) %>%
+     mutate(SurfaceNA = ifelse(is.na(df$Surface), 1, 0))%>%
+     mutate(IntermNA = ifelse(is.na(df$Interm), 1, 0)) %>%
+     mutate(nfigures=as.numeric(nfigures))%>%
+     mutate(Surface=log(Surface+1))%>%
+     select(-c(mat,school_pntg))
+   
+   factornames=colnames(df)[!colnames(df) %in% c("logprice","lot","position","Surface","nfigures")]
+   
+   df[factornames] = lapply(df[factornames], factor)
 
-  
-  x1[is.na(x1$Surface), 4] = 0
-  
-  for (j in 6:ncol(x1)){
-  x1[, j] <- as.factor(x1[, j])
-  }
+   df$Surface[is.na(df$Surface)] = 0
   
   
-  
-  if(train.omit==T){
-    x1 <- na.omit(x1)
-  }
-  
-  
-  
-  return(x1) 
+   if(NA.omit==T){
+      df = na.omit(df)
+   }
+
+
+   df=df[vapply(df, function(x) length(unique(x)) > 1, logical(1L))]
+   
+  return(df) 
 }
-train = data_clean(paintings_train, train.omit = F)
-#model1 = lm(logprice ~ 1+., data = train)
-#model1 = step(model1, k=log(nrow(train)), trace = 0)
-model1 = lm(logprice~1 + Surface + dealer + endbuyer + diff_origin + type_intermed + engraved + mat_recode+school_pntg_recode+paired + lrgfont + lands_sc + othgenre + discauth + othartist+still_life, 
+
+
+train = clean(paintings_train, NA.omit = T)
+
+model1 = lm(logprice ~ 1+., data = train)
+
+model1 = step(model1, k=log(nrow(train)), trace = 0)
+results.bic=summary(model1)
+results.bic$coefficients
+
+train=clean(paintings_train, NA.omit = F)
+model1 = lm(logprice~1 + Surface + dealer + endbuyer + diff_origin + type_intermed + engraved + mat_recode+school_pntg_recode+paired + lrgfont + lands_sc + othgenre + discauth + othartist+still_life,
     data = train)
 
 summary(model1)
@@ -90,7 +96,7 @@ Through step function we find a "violent" model just using according to some cri
 Save predictions and intervals
 ```{r predict-model1, echo=FALSE}
 load("paintings_test.Rdata")
-test =  data_clean(paintings_test, train.omit = F)
+test =clean(paintings_test, NA.omit = F)
 
 predictions = as.data.frame(
   exp(predict(model1, newdata=test, 
