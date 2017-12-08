@@ -6,7 +6,7 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 library(dplyr)
 library(knitr)
 ```
@@ -18,12 +18,9 @@ We hope to build a OLS model to predict the log of price fetched at auction. Sin
 In addition to that, some variables have a lot of missing values and typos. We would need to perform some sort of missing imputation, e.g. assume MCAR and use MICE package. For typos, we would recode them to appropriate values.
 From the correlation martices, we find some highly-correlated variables, so we dicide to not include some of the variables in our model to aviod multicollinearity.
 
-
 2. Exploratory data analysis (10 points): must include three correctly labeled graphs and an explanation that highlight the most important features that went into your model building.
 
-2. Exploratory data analysis (10 points): must include three correctly labeled graphs and an explanation that highlight the most important features that went into your model building.
-
-```{r}
+```{r echo=FALSE, warning=FALSE}
 ###Function to clean the dataset
 
 #load the training data set
@@ -76,11 +73,11 @@ For this part, we intially have found some interaction between predictors from g
 
 First, we choose to plot boxplots for the variables that are highly correlated with response `logprice`
 
-```{r}
-library(ggplot2)
-library(dplyr)
-library(reshape2)
-library(tidyr)
+```{r echo=FALSE, warning=FALSE}
+suppressMessages(library(ggplot2))
+suppressMessages(library(dplyr))
+suppressMessages(library(reshape2))
+suppressMessages(library(tidyr))
 
 train_sub1 = train %>% select(logprice, dealer, endbuyer, type_intermed, lrgfont)
 
@@ -104,9 +101,9 @@ df4 = train %>%
 #   geom_boxplot()
 ```
 
-```{r}
-require(gridExtra)
-require(grid)
+```{r echo=FALSE, warning=FALSE}
+suppressMessages(require(gridExtra))
+suppressMessages(require(grid))
 
 g1 = ggplot(df1, aes(x=dealer, y= logprice)) +
   geom_boxplot(color="#999999",  alpha=0.8)
@@ -125,7 +122,7 @@ As we can see, for these four factor variables, each level has differernt means 
 
 Second, we try to find  some interaction effect between predictors using tree models.
 
-```{r}
+```{r echo=FALSE, warning=FALSE}
 # library(tree)
 # tree.vote =tree(logprice ~ ., data= train)
 # summary(tree.vote)
@@ -175,7 +172,7 @@ Since plotting average logprice, all the line lie between each other, we decide 
 * Residual: must include residual plot(s) and a discussion.  
 
 * Variables: must include table of coefficients and CI
-```{r model1, echo=FALSE}
+```{r echo=FALSE, warning=FALSE}
 model1 = lm(logprice ~ 1+., data = train)
 
 model1 = step(model1, k=log(nrow(train)), trace = 0)
@@ -191,6 +188,7 @@ model1 = lm(logprice~1 + Surface + dealer + endbuyer + diff_origin + type_interm
 summary(model1)
 ```
 
+From the summary of our model, we can see the adjusted R-squared is 0.5783, which suggests 57.83% of variability has been explained by our dependent variables when accounted for number of variables used. From our EDA, we can see dealer, type of end buyer(endbuyer),  type of intermediary(type_intermed) and whether the dealer devotes an additional paragraph(lrgfont). Those variables appear to be important in the boxplots so we would include them in our model. Starting with the full model, we perform stepwise selection based on BIC.
 
 ```{r echo=FALSE}
 #residual plots
@@ -232,3 +230,4 @@ The price for the "baseline category", which
 ```{r}
 
 ```
+
