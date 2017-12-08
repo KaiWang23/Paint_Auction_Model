@@ -100,7 +100,6 @@ df4 = train %>%
 #   geom_boxplot()
 ```
 
-<<<<<<< HEAD
 ```{r echo=FALSE, warning=FALSE}
 g1 = ggplot(df1, aes(x=dealer, y= logprice)) +
   geom_boxplot(color="#999999",  alpha=0.8)
@@ -114,7 +113,7 @@ g4 = ggplot(df4, aes(x=lrgfont, y= logprice)) +
 grid.arrange(g1, g2,g3,g4, ncol=2, top=textGrob("Boxplot for 4 most 'significant' variables", gp=gpar(fontsize=13,font=8)))
 ```
 
-<<<<<<< HEAD
+
 As we can see, for these four factor variables, each level has differernt means and distributions across, for examle, doing business with dealer R may not be a good deal, since they tend to have higher price, but it could also be the case that they tend to sell higher value painting; also, collectors tend bid higher price compared with other end buyers; from type of inttype of intermediary perspective, experts tend to have higher price in mind,(becasue they know the true intrinsic value?), lastly, if dealer have more information about the paintings, the final price will be higher as well. Therefore, it is likely human factors(especially type of dealer) play an important role on deciding the final bidding price, and we will expect they will "survive" after model selection process.
 
 
@@ -176,10 +175,10 @@ model1 = lm(logprice ~ 1+., data = train)
 
 model1 = step(model1, k=log(nrow(train)), trace = 0)
 results.bic=summary(model1)
-results.bic$coefficients
+#results.bic$coefficients
 
 train=clean(paintings_train, NA.omit = F)
-model1 = lm(logprice~1 + Surface + dealer + endbuyer + diff_origin + type_intermed + engraved + mat_recode+school_pntg_recode+paired + lrgfont + lands_sc + othgenre + discauth + othartist+still_life,
+model1 = lm(logprice~Surface + dealer + endbuyer + diff_origin + type_intermed + engraved + mat_recode+school_pntg_recode+paired + lrgfont + lands_sc + othgenre + discauth + othartist+still_life,
     data = train)
 ```
 
@@ -224,9 +223,10 @@ Provide recommendations for the art historian about features or combination of f
 
 The "baseline" category is auctioned by dealer J, with no information about end buyer nor the type of intermidary. The matrial of painting is canvas, school of painting is Dutch/Flemish, sold not in pairs, and dealer did not devote large paragraph nor engaged with the authenticity of the painting. The painting is not about land scape and did not contain still life elements. And the painting is not linked with the work of another artists or style and its description did not mention a genre scene.
 
-The price for the "baseline category", which 
+The median price for the "baseline" category is:
 
-```{r}
-
+```{r echo=FALSE}
+exp(median(train$Surface)*0.21815+2.27680)
 ```
+
 
