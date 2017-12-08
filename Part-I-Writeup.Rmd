@@ -90,6 +90,11 @@ model1 = lm(logprice~1 + Surface + dealer + endbuyer + diff_origin + type_interm
 ```
 
 ```{r echo=FALSE}
+summary(model1)
+```
+
+
+```{r echo=FALSE}
 #residual plots
 par(mfrow = c(2,2))
 plot(model1, c(1:4))
@@ -122,9 +127,10 @@ What is the (median) price for the "baseline" category if there are categorical 
 
 Provide recommendations for the art historian about features or combination of features to look for to find the most valuable paintings.
 
+The "baseline" category is auctioned by dealer J, with no information about end buyer nor the type of intermidary. The matrial of painting is canvas, school of painting is Dutch/Flemish, sold not in pairs, and dealer did not devote large paragraph nor engaged with the authenticity of the painting. The painting is not about land scape and did not contain still life elements. And the painting is not linked with the work of another artists or style and its description did not mention a genre scene.
 
+The price for the "baseline category", which 
 
 ```{r}
 
 ```
-
