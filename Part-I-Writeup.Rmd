@@ -95,6 +95,9 @@ par(mfrow = c(2,2))
 plot(model1, c(1:4))
 ```
 
+The Residual vs Fitted plot shows consistent residuals across different fitted values, which means constant variance assumption is satisfied. In addition to that, the Normal Q-Q plot displays essentially normal distributed residuals. And from Cook's distance plot, we can see all observations have small Cook's distance and there is no sign of high leverage points nor influential points. Hence, we decide that all assumptions for this model have been met and we will use this model for prediction.
+
+The coefficients and confidence interval of variables used are as follows:
 
 ```{r echo=FALSE}
 #coefficients and CI
@@ -118,6 +121,8 @@ save(predictions, file="predict-test.Rdata")
 What is the (median) price for the "baseline" category if there are categorical or dummy variables in the model (add CI's)?  (be sure to include units!) Highlight important findings and potential limitations of your model.  Does it appear that interactions are important?  What are the most important variables and/or interactions?  Provide interprations of how the most important variables influence the (median) price giving a range (CI).  Correct interpretation of coefficients for the log model desirable for full points.
 
 Provide recommendations for the art historian about features or combination of features to look for to find the most valuable paintings.
+
+
 
 ```{r}
 
