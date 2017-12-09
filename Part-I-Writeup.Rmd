@@ -283,7 +283,7 @@ par(mfrow = c(2,2))
 plot(model1, c(1:3,5))
 ```
 
-The Residual vs Fitted plot shows consistent residuals across different fitted values, which means constant variance assumption is satisfied. In addition to that, the Normal Q-Q plot displays essentially normal distributed residuals. And from Cook's distance plot, we can see all observations have small Cook's distance and there is no sign of influential points. There are is a high leverage point but since the standardized residual is very small, it's not an influential point. We suspect observation #180, #1080, #380 are potential outliers, but since their leverage are very low, it would not affect the model much. Hence, we decide that all assumptions for this model have been met and we will use this model for prediction.
+The Residual vs Fitted plot shows consistent residuals across different fitted values, which means constant variance assumption is satisfied. In addition to that, the Normal Q-Q plot displays essentially normal distributed residuals with a couple exception for the heavier right tail. And from Cook's distance plot, we can see all observations have small Cook's distance and there is no sign of influential points. There are is a high leverage point but since the standardized residual is very small, it's not an influential point. We suspect observation #180, #1080, #380 are potential outliers (could be masking?), but since their leverage are very low, it would not affect the model much. Hence, we decide that all assumptions for this model have been met and we will use this model for prediction. Further analysis could improve by involving addtional predictors and interaction or even using gernal addictive model to explain thoes observation.
 
 The coefficients and confidence interval of variables used are as follows:
 
@@ -295,14 +295,17 @@ kable(CI)
 ```
 
 ```{r predict-model1, echo=FALSE}
-load("paintings_test.Rdata")
-test =clean(paintings_test, NA.omit = F)
-
-predictions = as.data.frame(
-  exp(predict(model1, newdata=test, 
-              interval = "pred")))
-save(predictions, file="predict-test.Rdata")
+# load("paintings_test.Rdata")
+# test =clean(paintings_test, NA.omit = F)
+# 
+# predictions = as.data.frame(
+#   exp(predict(model1, newdata=test, 
+#               interval = "pred")))
+# save(predictions, file="predict-test.Rdata")
 ```
+
+We can see some of the variables are not statiscially significant or their confidence intervals involve 0, however, we can not draw a conclusion that should include thoes variables in the model since the p-vaule after stepwise selection like in this case, is no longer meaningful.
+
 
 4. Summary and Conclusions (10 points)
 
@@ -315,15 +318,26 @@ The "baseline" category is auctioned by dealer J, with no information about end 
 The median price for the "baseline" category is:
 
 ```{r echo=FALSE}
-exp(mean(train$Surface)*0.21815+2.27680)
+#exp(mean(train$Surface)*0.21815+2.27680)
+# df.base = data.frame(data.frame(Surface = mean(train$Surface), dealer = 0,endbuyer =0, diff_origin = 0,type_intermed = 0,engraved = 0,mat_recode = 0,mat_recode = 0,school_pntg_recode = 0,paired = 0,lrgfont = 0,lands_sc = 0,othgenre = 0,discauth = 0,othartist = 0,still_life = 0))
+# colnames(df.base) = 
+
+df.base = train %>% select(Surface, dealer, endbuyer, diff_origin, type_intermed, engraved,
+                           mat_recode, school_pntg_recode, paired, lrgfont, lands_sc,
+                           othgenre, discauth,othartist,still_life )
+df.base[1132,] = c(mean(test$Surface), "J", "", 0,"", 0, "canvas", "D/FL", 0,0,0,0,0,0,0)
+df.base$Surface = as.numeric(df.base$Surface)
+
+predict(model1, newdata =df.base[1132,],  interval = "pred")
 ```
+With the fitter value will be the median price and its prediction interval, its unit will be livres.
 
 ```{r echo=FALSE}
 kable(CI[c(2,3:10,12:15,22:25),])
 ```
 
 It's interesting that we find some interaction effects during EDA when we fitted some tree models, however, after fitting linear model, we decide to drop those interaction effects to improve model performance. This result suggets although those interactions might exist, they are not good predictors for logprice. Then, we can take a look at some important variables and their confidence intervals. 
-From the coefficients, we can see dealer is very important to the logprice. For example, if auctioned by dealer L, we would expect our price to increase by 1.44%, and we are 95% confident that the increase in price will be between 1.13% to 1.75%. All other categorical variables would have similar interpretation. 
-For the only numerical variable surface, if we increase surface area by 1%, the price would increase 0.0022 livres.
+From the coefficients, we can see some predictos are very important to the logprice. In particular, if auctioned by dealer L, we would expect our price to increase by 144% compared with dealer J holding other variable constant, and we are 95% confident that the increase in price will be between 113% to 175%; if the end_buyer is collectors, we would expect the final price to increase by 93.5% compared with the buyer is ""(we should recode this part and make it more meaningful) holding other variable constant, and we are 95% confident that the increase in price will be between 62.6% to 125.5%; if auctioned by intermediary is expert, we would expect our price to increase by 53.8% compared withcompared with the intermediary is ""(we should recode this part and make it more meaningful) holding other variable constant, and we are 95% confident that the increase in price will be between 6% to 101.5%, which have a quite large uncertainty in this case; All other categorical variables would have similar interpretation. 
+For the only numerical variable surface, if we increase surface area by 1%, the price would increase 0.22% livres.
 
 My suggestion for art historian would be look for a painting with as large surface area as possible, and ideally auctioned by dealer L, bought by a dealer in the auction. And the origin of the painting should be correctly classified by the dealer. The painting should went through a dealer intermediary. In addition, if the dealer mentioned engraving done after the painting, it's likely to worth more. The material of the painting should be other to increase its value. Last, if a dealer devoted a large paragraph to the painting, it will worth more.
