@@ -295,12 +295,12 @@ kable(CI)
 ```
 
 ```{r predict-model1, echo=FALSE}
-# load("paintings_test.Rdata")
-# test =clean(paintings_test, NA.omit = F)
+load("paintings_test.Rdata")
+test =clean(paintings_test, NA.omit = F)
 # 
-# predictions = as.data.frame(
-#   exp(predict(model1, newdata=test, 
-#               interval = "pred")))
+predictions = as.data.frame(
+  exp(predict(model1, newdata=test,
+              interval = "pred")))
 # save(predictions, file="predict-test.Rdata")
 ```
 
