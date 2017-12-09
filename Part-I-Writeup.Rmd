@@ -25,6 +25,7 @@ From the correlation martices, we find some highly-correlated variables, so we d
 
 2. Exploratory data analysis (10 points): must include three correctly labeled graphs and an explanation that highlight the most important features that went into your model building.
 
+
 ```{r echo=FALSE, warning=FALSE}
 ###Function to clean the dataset
 
@@ -111,7 +112,7 @@ g3 = ggplot(df3, aes(x=type_intermed, y= logprice)) +
 g4 = ggplot(df4, aes(x=lrgfont, y= logprice)) +
   geom_boxplot(color="purple",  alpha=0.8)
 
-grid.arrange(g1, g2,g3,g4, ncol=2, top=textGrob("Boxplot for 4 most 'significant' variables", gp=gpar(fontsize=13,font=8)))
+grid.arrange(g1, g2,g3,g4, ncol=2, top=textGrob("Boxplot for 4 most 'significant' variables", gp=gpar(fontsize=12,font=8)))
 ```
 
 
@@ -266,6 +267,38 @@ results.bic=summary(model1)
 # imputed_Data <- mice(test, m=5, maxit = 50, method = 'pmm', seed = 500)
 # test[is.na(test$Surface),'Surface'] = imputed_Data$imp$Surface_Rect[2]
 
+# library(glmnet)
+# 
+# f <- as.formula(logprice ~ .+year*lrgfont
+#                 +year*origin_author
+#                 +origin_author*type_intermed
+#                 +type_intermed*position
+#                 +origin_author*Width_in
+#                 +Width_in*Surface_Rect
+#                 +year*Surface_Rect)
+# y <- new.df$logprice
+# x <- model.matrix(f, new.df)[, -1]
+# 
+# grid = 10^(seq(10,-2, length=100))
+# 
+# library(glmnet)
+# lasso.mod= glmnet(x,y,alpha=1, lambda=grid)
+# plot(lasso.mod)
+# set.seed(1)
+# 
+# cv.out = cv.glmnet(x,y, alpha=1)
+# plot(cv.out)
+# bestlam=cv.out$lambda.min
+# lasso.mod2 = glmnet(x,y,alpha=1, lambda=bestlam)
+# 
+# #out=glmnet(x,y,alpha=1, lambda=grid)
+# lasso.coef=predict(lasso.mod2, type="coefficients", s=bestlam)
+# lasso.coef
+# 
+# index = which(summary(lasso.coef)[,3] > 0.01 | summary(lasso.coef)[,3] < -0.01 )
+# 
+# variables = row.names(lasso.coef)[index]
+
 train=clean(paintings_train, NA.omit = F)
 model1 = lm(logprice~Surface + dealer + endbuyer + diff_origin + type_intermed + engraved + mat_recode+school_pntg_recode+paired + lrgfont + lands_sc + othgenre + discauth + othartist+still_life,
     data = train)
@@ -275,7 +308,7 @@ model1 = lm(logprice~Surface + dealer + endbuyer + diff_origin + type_intermed +
 summary(model1)
 ```
 
-From the summary of our model, we can see the  R-squared is 0.5899, which suggests 58.99% of variability has been explained by our predictors. From our EDA, we can see dealer, type of end buyer(endbuyer),  type of intermediary(type_intermed) and whether the dealer devotes an additional paragraph(lrgfont). Those variables appear to be important in the boxplots so we would include them in our model. Starting with the full model, we perform stepwise selection based on BIC; even though we are aware that models coming from the AIC selection tend to have higher prediction power, it is not the case here after "backward", "forward" nor "both", so we decide to combine some predictors from AIC with the BIC model, after some trial and errors, notably deleting one of the "important" variable year(either numeric or factor type), it dramatically increase the model performance in the test model, the reason behind could be there are some hidden correlation between year and other preditors in the model. Moreover, it is surprising that we can't find any meaningful interaction in this case, like the one we mentioned above in task two, along with dealer:dif_orgin and dealer:origin_cat, none of them survive from our stepwise selection, and manually adding them will not increase model performance either.
+From the summary of our model, we can see the  R-squared is 0.5899, which suggests 58.99% of variability has been explained by our predictors. From our EDA, we can see dealer, type of end buyer(endbuyer),  type of intermediary(type_intermed) and whether the dealer devotes an additional paragraph(lrgfont). Those variables appear to be important in the boxplots so we would include them in our model. Starting with the full model, we perform stepwise selection based on BIC along with LASSO(not included in the output); even though we are aware that models coming from the AIC selection tend to have higher prediction power, it is not the case here after "backward", "forward" nor "both", so we decide to combine some predictors from AIC with the BIC model, after some trial and errors, notably deleting one of the "important" variable year(either numeric or factor type), it dramatically increase the model performance in the test model, the reason behind could be there are some hidden correlation between year and other preditors in the model. Moreover, it is surprising that we can't find any meaningful interaction in this case, like the one we mentioned above in task two, along with dealer:dif_orgin and dealer:origin_cat, none of them survive from our stepwise selection, and manually adding them will not increase model performance either, therefore, we decide not to include interaction term in this part of the model.
 
 ```{r echo=FALSE, fig3, fig.width=12, fig.height=8}
 #residual plots
@@ -328,9 +361,9 @@ df.base = train %>% select(Surface, dealer, endbuyer, diff_origin, type_intermed
 df.base[1132,] = c(mean(test$Surface), "J", "", 0,"", 0, "canvas", "D/FL", 0,0,0,0,0,0,0)
 df.base$Surface = as.numeric(df.base$Surface)
 
-predict(model1, newdata =df.base[1132,],  interval = "pred")
+exp(predict(model1, newdata =df.base[1132,],  interval = "pred"))
 ```
-With the fitter value will be the median price and its prediction interval, its unit will be livres.
+With the fitted value will be the median price and its prediction interval, its unit will be livres. It means that with average surface area(about 587 inch^2) and it is  auctioned by dealer J, with no information about end buyer nor the type of intermidary. The matrial of painting is canvas, school of painting is Dutch/Flemish, sold not in pairs, and dealer did not devote large paragraph nor engaged with the authenticity of the painting. The painting is not about land scape and did not contain still life elements. And the painting is not linked with the work of another artists or style and its description did not mention a genre scene, its median price will be about 30.78 livres,and we are 95% confident that the price will be between 2.57 to 367.87 livres.
 
 ```{r echo=FALSE}
 kable(CI[c(2,3:10,12:15,22:25),])
