@@ -137,7 +137,7 @@ library(gbm)
 
 boost.logprice =gbm(logprice~Surface + dealer + endbuyer + diff_origin + type_intermed + engraved + mat_recode+school_pntg_recode+paired + lrgfont + lands_sc + othgenre + discauth + othartist+still_life, data=train, 
                 distribution="gaussian",n.trees =10000, 
-                interaction.depth = 3)
+                interaction.depth = 1)
 
 pred = predict(boost.logprice,newdata=test,n.trees=10000,
                        type="response")
