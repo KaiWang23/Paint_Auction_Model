@@ -143,6 +143,7 @@ pred = predict(boost.logprice,newdata=test,n.trees=5000,
                        type="response")
 pred = exp(pred)
 predictions = as.data.frame(pred)
+colnames(predictions) = c("fit")
 save(predictions, file = "predict-test.Rdata")
 ```
 
