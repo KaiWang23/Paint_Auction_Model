@@ -117,17 +117,19 @@ df.bas = bas.lm(logprice ~ .-lot, data=train,
 prior="g-prior", a=nrow(train), modelprior=uniform(),
 method="MCMC", MCMC.iterations = 2000000, thin = 20)
 
-y.pred.bma = predict(df.bas, newdata = test, estimator = "BMA", se.fit = TRUE, prediction = FALSE)
+y.pred.bma = predict(df.bas, newdata = test, estimator = "BPM", se.fit = TRUE, prediction = FALSE)
 
 predictions = confint(y.pred.bma, parm = "pred")
 predictions = as.data.frame(matrix(predictions, nrow = nrow(test)))
 
 colnames(predictions) = c("lwr", "upr", "fit")
-predictions = predictions %>% select(fit, lwr, upr)
+predictions = predictions %>% 
+  select(fit, lwr, upr) %>% 
+  mutate(fit = exp(fit),
+         lwr = exp(lwr),
+         upr = exp(upr))
 
-save(predictions, file = "predict_test.Rdata")
-load("predict_test.Rdata")
-
+save(predictions, file = "predict-test.Rdata")
 ```
 
 ```{r}
