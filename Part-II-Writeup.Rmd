@@ -113,7 +113,7 @@ pred1=predict(fit,newdata = test, type="vector")
 
 ```{r}
 library(BAS)
-df.bas = bas.lm(logprice ~ .-lot, data=train,
+df.bas = bas.lm(logprice~Surface + dealer + endbuyer + diff_origin + type_intermed + engraved + mat_recode+school_pntg_recode+paired + lrgfont + lands_sc + othgenre + discauth + othartist+still_life, data=train,
 prior="g-prior", a=nrow(train), modelprior=uniform(),
 method="MCMC", MCMC.iterations = 2000000, thin = 20)
 
