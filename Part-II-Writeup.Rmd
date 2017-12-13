@@ -117,7 +117,7 @@ df.bas = bas.lm(logprice ~ .-lot, data=train,
 prior="g-prior", a=nrow(train), modelprior=uniform(),
 method="MCMC", MCMC.iterations = 2000000, thin = 20)
 
-y.pred.bma = predict(df.bas, newdata = test, estimator = "BPM", se.fit = TRUE, prediction = FALSE)
+y.pred.bma = predict(df.bas, newdata = test, estimator = "BMA", se.fit = TRUE, prediction = FALSE)
 
 predictions = confint(y.pred.bma, parm = "pred")
 predictions = as.data.frame(matrix(predictions, nrow = nrow(test)))
@@ -133,8 +133,32 @@ save(predictions, file = "predict-test.Rdata")
 ```
 
 ```{r}
+library(gbm)
+
+boost.logprice =gbm(logprice ~ .-lot, data=train, 
+                distribution="gaussian",n.trees =5000,
+                interaction.depth =4)
+
+pred = predict(boost.logprice,newdata=test,n.trees=5000,
+                       type="response")
+pred = exp(pred)
+predictions = as.data.frame(pred)
+save(predictions, file = "predict-test.Rdata")
+```
+
+
+```{r}
 #XGBoost
+#using one hot encoding 
 labels = train$logprice
+ts_label = test$label
+new_tr = model.matrix(~.+0,data = train[,-c("target"),with=F]) 
+new_ts <- model.matrix(~.+0,data = test[,-c("target"),with=F])
+
+#unfinished
+#convert factor to numeric 
+labels <- as.numeric(labels)-1
+ts_label <- as.numeric(ts_label)-1
 
 ```
 
