@@ -135,7 +135,7 @@ save(predictions, file = "predict-test.Rdata")
 ```{r}
 library(gbm)
 
-boost.logprice =gbm(logprice ~ ., data=train, 
+boost.logprice =gbm(logprice~Surface + dealer + endbuyer + diff_origin + type_intermed + engraved + mat_recode+school_pntg_recode+paired + lrgfont + lands_sc + othgenre + discauth + othartist+still_life, data=train, 
                 distribution="gaussian",n.trees =10000,
                 interaction.depth = 4)
 
@@ -145,7 +145,9 @@ pred = exp(pred)
 predictions = as.data.frame(pred)
 colnames(predictions) = c("fit")
 save(predictions, file = "predict-test.Rdata")
+```
 
+```{r}
 library(caret)
 #https://stackoverflow.com/questions/15613332/using-caret-package-to-find-optimal-parameters-of-gbm
 getModelInfo()$gbm$parameters
