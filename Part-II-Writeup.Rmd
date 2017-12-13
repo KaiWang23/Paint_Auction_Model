@@ -136,7 +136,7 @@ save(predictions, file = "predict-test.Rdata")
 library(gbm)
 
 boost.logprice =gbm(logprice~Surface + dealer + endbuyer + diff_origin + type_intermed + engraved + mat_recode+school_pntg_recode+paired + lrgfont + lands_sc + othgenre + discauth + othartist+still_life, data=train, 
-                distribution="gaussian",n.trees =10000, shrinkage = 0.005,
+                distribution="gaussian",n.trees =10000,
                 interaction.depth = 3)
 
 pred = predict(boost.logprice,newdata=test,n.trees=10000,
@@ -150,7 +150,6 @@ save(predictions, file = "predict-test.Rdata")
 ```{r}
 library(caret)
 #https://stackoverflow.com/questions/15613332/using-caret-package-to-find-optimal-parameters-of-gbm
-getModelInfo()$gbm$parameters
 library(parallel)
 library(doMC)
 registerDoMC(cores = 16)
@@ -159,23 +158,24 @@ nl = nrow(train)
 max(0.01, 0.1*min(1, nl/10000))
 # Max Value for interaction.depth
 floor(sqrt(NCOL(train)))
-gbmGrid <-  expand.grid(interaction.depth = c(1,2,4,6),
+gbmGrid <-  expand.grid(interaction.depth = c(1,2,3,4),
                     n.trees = (0:100)*100, 
-                    shrinkage = seq(.0005, .01,.0005),
+                    shrinkage = seq(.0001, .001,.0001),
                     n.minobsinnode = 10) 
 
 fitControl <- trainControl(method = "repeatedcv",
                        repeats = 5,
                        preProcOptions = list(thresh = 0.95),
                        ## Estimate class probabilities
-                       classProbs = TRUE,
+                       classProbs = FALSE,
                        ## Evaluate performance using
                        ## the following function
-                       summaryFunction = twoClassSummary)
+                       summaryFunction = defaultSummary)
 
 # Method + Date + distribution
 set.seed(1)
-system.time(GBM <- train(logprice ~ ., data = train,
+GBM <- train(logprice ~ Surface + dealer + endbuyer + diff_origin + type_intermed + engraved + mat_recode+school_pntg_recode+paired+lrgfont+ lands_sc + othgenre + discauth + othartist+still_life, 
+            data = train,
             distribution = "gaussian",
             method = "gbm", bag.fraction = 0.5,
             nTrain = round(nrow(train) *.75),
@@ -183,7 +183,7 @@ system.time(GBM <- train(logprice ~ ., data = train,
             verbose = TRUE,
             tuneGrid = gbmGrid,
             ## Specify which metric to optimize
-            metric = "ROC"))
+            metric = "ROC")
 ```
 
 
