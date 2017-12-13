@@ -135,16 +135,53 @@ save(predictions, file = "predict-test.Rdata")
 ```{r}
 library(gbm)
 
-boost.logprice =gbm(logprice ~ .-lot, data=train, 
-                distribution="gaussian",n.trees =20000,
+boost.logprice =gbm(logprice ~ ., data=train, 
+                distribution="gaussian",n.trees =10000,
                 interaction.depth = 4)
 
-pred = predict(boost.logprice,newdata=test,n.trees=20000,
+pred = predict(boost.logprice,newdata=test,n.trees=10000,
                        type="response")
 pred = exp(pred)
 predictions = as.data.frame(pred)
 colnames(predictions) = c("fit")
 save(predictions, file = "predict-test.Rdata")
+
+library(caret)
+#https://stackoverflow.com/questions/15613332/using-caret-package-to-find-optimal-parameters-of-gbm
+getModelInfo()$gbm$parameters
+library(parallel)
+library(doMC)
+registerDoMC(cores = 16)
+# Max shrinkage for gbm
+nl = nrow(train)
+max(0.01, 0.1*min(1, nl/10000))
+# Max Value for interaction.depth
+floor(sqrt(NCOL(train)))
+gbmGrid <-  expand.grid(interaction.depth = c(1,2,4,6),
+                    n.trees = (0:100)*100, 
+                    shrinkage = seq(.0005, .01,.0005),
+                    n.minobsinnode = 10) # you can also put something        like c(5, 10, 15, 20)
+
+fitControl <- trainControl(method = "repeatedcv",
+                       repeats = 5,
+                       preProcOptions = list(thresh = 0.95),
+                       ## Estimate class probabilities
+                       classProbs = TRUE,
+                       ## Evaluate performance using
+                       ## the following function
+                       summaryFunction = twoClassSummary)
+
+# Method + Date + distribution
+set.seed(1)
+system.time(GBM <- train(logprice ~ ., data = train,
+            distribution = "gaussian",
+            method = "gbm", bag.fraction = 0.5,
+            nTrain = round(nrow(train) *.75),
+            trControl = fitControl,
+            verbose = TRUE,
+            tuneGrid = gbmGrid,
+            ## Specify which metric to optimize
+            metric = "ROC"))
 ```
 
 
