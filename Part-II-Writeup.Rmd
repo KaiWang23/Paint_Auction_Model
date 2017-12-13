@@ -186,24 +186,6 @@ xgb_tune <-train(logprice~Surface + dealer + endbuyer + diff_origin + type_inter
 
 
 ```{r}
-#XGBoost
-#using one hot encoding 
-labels = train$logprice
-ts_label = test$label
-new_tr = model.matrix(~.+0,data = train[,-c("target"),with=F]) 
-new_ts <- model.matrix(~.+0,data = test[,-c("target"),with=F])
-
-#unfinished
-#convert factor to numeric 
-labels <- as.numeric(labels)-1
-ts_label <- as.numeric(ts_label)-1
-#add
-
-```
-
-
-
-```{r}
 #lasso
 library(glmnet)
 
