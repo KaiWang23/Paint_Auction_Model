@@ -136,10 +136,10 @@ save(predictions, file = "predict-test.Rdata")
 library(gbm)
 
 boost.logprice =gbm(logprice ~ .-lot, data=train, 
-                distribution="gaussian",n.trees =5000,
-                interaction.depth =4)
+                distribution="gaussian",n.trees =10000,
+                interaction.depth =6)
 
-pred = predict(boost.logprice,newdata=test,n.trees=5000,
+pred = predict(boost.logprice,newdata=test,n.trees=10000,
                        type="response")
 pred = exp(pred)
 predictions = as.data.frame(pred)
