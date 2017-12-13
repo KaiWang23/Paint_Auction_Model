@@ -154,18 +154,13 @@ library(caret)
 library(parallel)
 library(doMC)
 registerDoMC(cores = 8)
-# Max shrinkage for gbm
-nl = nrow(train)
-max(0.01, 0.1*min(1, nl/10000))
-# Max Value for interaction.depth
-floor(sqrt(NCOL(train)))
 
 cv.ctrl <- trainControl(method = "repeatedcv", repeats = 1,number = 3, 
                         #summaryFunction = twoClassSummary,
                         classProbs = TRUE,
                         allowParallel=T)
 
-xgb.grid <- expand.grid(nrounds = 1000,
+xgb.grid <- expand.grid(nrounds = 50,
                         eta = c(0.01,0.05,0.1),
                         lambda = c(0.1),
                         alpha = c(1))
@@ -180,7 +175,7 @@ xgb_tune <-train(logprice~Surface + dealer + endbuyer + diff_origin + type_inter
                    #maxmize = "FALSE",
                    #nthread =3,
                  gamma = 0.5,
-                 nthread = 10
+                 nthread = 16
     )
 ```
 
