@@ -14,6 +14,7 @@ suppressMessages(library(tidyr))
 suppressMessages(library(gridExtra))
 suppressMessages(library(grid))
 suppressMessages(library(knitr))
+suppressMessages(library(xgboost))
 ```
 
 1. Introduction: Summary of problem and objectives (5 points)
@@ -111,8 +112,6 @@ pred1=predict(fit,newdata = test, type="vector")
 
 
 ```{r}
-load("predict-test.Rdata")
-
 library(BAS)
 df.bas = bas.lm(logprice ~ .-lot, data=train,
 prior="g-prior", a=nrow(train), modelprior=uniform(),
@@ -122,9 +121,18 @@ y.pred.bma = predict(df.bas, newdata = test, estimator = "BMA", se.fit = TRUE, p
 
 predictions = confint(y.pred.bma, parm = "pred")
 predictions = as.data.frame(matrix(predictions, nrow = nrow(test)))
-colnames(predictions) = c("lwr", "upr", "pred")
-predictions = predictions %>% select(pred, lwr, upr)
+
+colnames(predictions) = c("lwr", "upr", "fit")
+predictions = predictions %>% select(fit, lwr, upr)
 
 save(predictions, file = "predict_test.Rdata")
+load("predict_test.Rdata")
+
+```
+
+```{r}
+#XGBoost
+labels = train$logprice
+
 ```
 
