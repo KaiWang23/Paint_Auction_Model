@@ -1,0 +1,132 @@
+---
+title: "Part1 Analysis"
+author: "Team: SparkR"
+date: "2017/12/7"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+suppressMessages(library(ggplot2))
+suppressMessages(library(dplyr))
+suppressMessages(library(reshape2))
+suppressMessages(library(tidyr))
+suppressMessages(library(gridExtra))
+suppressMessages(library(grid))
+suppressMessages(library(knitr))
+```
+
+1. Introduction: Summary of problem and objectives (5 points)
+
+Late 18th century Paris has witnessed countless number of auctions on fine arts and paintings from countries across Europe. Our project utilizes this dataset from auction in 18th century Paris with details of paintings, authors and auctions. 
+We hope to build a OLS model to predict the log of price fetched at auction. Since our dataset contains 59 variables, we would want to perform variable selection to build a parsimonious model with good performance in critiria such as RMSE, etc. 
+In addition to that, some variables have a lot of missing values and typos. We would need to perform some sort of missing imputation, e.g. assume MCAR and use MICE package. For typos, we would recode them to appropriate values.
+From the correlation martices, we find some highly-correlated variables, so we decide to not include some of the variables in our model to aviod multicollinearity.
+
+2. Exploratory data analysis (10 points): must include three correctly labeled graphs and an explanation that highlight the most important features that went into your model building.
+
+
+```{r echo=FALSE, warning=FALSE}
+###Function to clean the dataset
+
+#load the training data set
+load("paintings_train.Rdata")
+load("paintings_test.Rdata")
+
+tt = paintings_train
+
+clean = function(df, NA.omit=F){
+   df = df %>% 
+     select(-c(sale, price, count, subject, winningbidder, authorstandard, authorstyle, author, Height_in, Width_in, Surface_Rect, Diam_in, winningbiddertype, Surface_Rnd,material,materialCat, Interm)) %>%
+     mutate(lot = as.numeric(lot)) %>%
+     mutate(mat_recode = ifelse(mat %in% c("a", "bc", "c"), "metal",
+                          ifelse(mat %in% c("al", "ar", "m"), "stone",
+                                ifelse(mat %in% c("co", "bt", "t"), "canvas",
+                                       ifelse(mat %in% c("p", "ca"), "paper",
+                                              ifelse(mat %in% c("b"), "wood",
+                                                     ifelse(mat %in% c("o", "e", "v"), "other",
+                                                            ifelse(mat %in% c("n/a", ""), "na",
+                                                                   "na")))))))) %>%
+     mutate(school_pntg_recode = ifelse(school_pntg %in% c("A", "G", "S"), "other",school_pntg)) %>%
+     mutate(SurfaceNA = ifelse(is.na(df$Surface), 1, 0))%>%
+     mutate(nfigures=as.numeric(nfigures))%>%
+     mutate(Surface=log(Surface+1))%>%
+     mutate(endbuyer = ifelse(endbuyer == "", "NA", endbuyer)) %>% 
+   mutate(shape_recode = ifelse(Shape == "", "Other",
+                               ifelse(Shape == "ovale", "oval",
+                                      ifelse(Shape == "ronde", "round",
+                                             ifelse(Shape == "octogon", "Other", Shape)))))%>% 
+     select(-c(mat,school_pntg, Shape))
+   
+   factornames=colnames(df)[!colnames(df) %in% c("logprice","lot","position","Surface","nfigures")]
+   
+   df[factornames] = lapply(df[factornames], factor)
+
+   df$Surface[is.na(df$Surface)] = 0
+  
+  
+   if(NA.omit==T){
+      df = na.omit(df)
+   }
+
+
+   #df=df[vapply(df, function(x) length(unique(x)) > 1, logical(1L))]
+   
+  return(df) 
+}
+
+
+train = clean(paintings_train, NA.omit = T)
+test = clean(paintings_test, NA.omit = F)
+
+
+
+
+
+for(i in setdiff(1:ncol(train), c(2,14,15))) {
+  levels(train[,i]) = union(levels(train[,i]), levels(test[,i]))
+}
+
+#levels(train$endbuyer) = levels(train$endbuyer)[-1]
+#levels(test$endbuyer) = levels(test$endbuyer)[-1]
+
+#train$winningbiddertype = paintings_train$winningbiddertype
+
+#winningbiddertype
+```
+
+
+```{r}
+library(tree)
+library(rpart)
+tree.nes=tree(logprice ~., data=train)
+cv.vote = cv.tree(tree.nes, FUN=prune.tree)
+prune.vote = prune.rpart(cv.vote,cp = 0.1)
+
+fit <- rpart(logprice ~ ., data = train)
+test =clean(paintings_test, NA.omit = F)
+fit$xlevels[["winningbiddertype"]] <- union(fit$xlevels[["winningbiddertype"]], levels(test$winningbiddertype))
+pred1=predict(fit,newdata = test, type="vector")
+```
+
+
+```{r}
+library(BAS)
+
+
+df.bas = bas.lm(logprice ~ .-lot, data=train,
+prior="g-prior", a=nrow(train), modelprior=uniform(),
+method="MCMC", MCMC.iterations = 200000, thin = 20)
+
+
+# df.bas$xlevels[["winningbiddertype"]] <- union(df.bas$xlevels[["winningbiddertype"]], levels(test$winningbiddertype))
+# 
+# df.bas$xlevels[["endbuyer"]] <- union(df.bas$xlevels[["endbuyer"]], levels(test$endbuyer))
+# 
+# 
+# df.bas$xlevels[["shape_recode"]] <- union(df.bas$xlevels[["shape_recode"]], 
+#                                           levels(test$shape_recode))
+
+y.pred.bma = predict(df.bas, newdata = test, estimator = "BMA", se.fit = TRUE, prediction = FALSE)
+```
+
