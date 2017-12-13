@@ -154,20 +154,15 @@ cv.ctrl <- trainControl(method = "repeatedcv", repeats = 1,number = 3,
                         classProbs = TRUE,
                         allowParallel=T)
 
-xgb.grid <- expand.grid(nrounds = 1000,
-                        eta = c(0.01,0.05,0.1),
-                        lambda = c(0.1),
+xgb.grid <- expand.grid(nrounds = 50,
+                        eta = c(0.01,0.05,0.1,0.15,0.20),
+                        lambda = c(0.1,0.2,0.3,0.4,0.5),
                         alpha = c(1))
 set.seed(45)
-xgb_tune <-train(logprice~Surface + dealer + endbuyer + diff_origin + type_intermed + engraved + mat_recode+school_pntg_recode+paired + lrgfont + lands_sc + othgenre + discauth + othartist+still_life,
-                   data=train,
-                   method="xgbLinear",
-                   #trControl=cv.ctrl,
-                   tuneGrid=xgb.grid,
-                   #verbose=T,
-                   #metric="RMSE",
-                   #maxmize = "FALSE",
-                   #nthread =3,
+xgb_tune <-train(logprice~.,
+                 data=train,
+                 method="xgbLinear",
+                 tuneGrid=xgb.grid,
                  gamma = 0.5,
                  nthread = 8
     )
