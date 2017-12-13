@@ -49,6 +49,7 @@ clean = function(df, NA.omit=F){
                                                             ifelse(mat %in% c("n/a", ""), "na",
                                                                    "na")))))))) %>%
      mutate(school_pntg_recode = ifelse(school_pntg %in% c("A", "G", "S"), "other",school_pntg)) %>%
+     mutate(origin_cat=ifelse(origin_cat %in% c("X","S"),"O",origin_cat))%>%
      mutate(SurfaceNA = ifelse(is.na(df$Surface), 1, 0))%>%
      mutate(nfigures=as.numeric(nfigures))%>%
      mutate(Surface=log(Surface+1))%>%
@@ -134,8 +135,7 @@ save(predictions, file = "predict-test.Rdata")
 
 ```{r}
 library(gbm)
-
-boost.logprice =gbm(logprice~Surface + dealer + endbuyer + diff_origin + type_intermed + engraved + mat_recode+school_pntg_recode+paired + lrgfont + lands_sc + othgenre + discauth + othartist+still_life, data=train, 
+boost.logprice =gbm(logprice~Surface + dealer + endbuyer + diff_origin + type_intermed + engraved + mat_recode+school_pntg_recode+paired + lrgfont + lands_sc + othgenre + discauth + othartist+still_life+SurfaceNA+year:dealer+year:school_pntg_recode+peasant+mytho, data=train, 
                 distribution="gaussian",n.trees =10000, 
                 interaction.depth = 1)
 
@@ -200,6 +200,53 @@ new_ts <- model.matrix(~.+0,data = test[,-c("target"),with=F])
 labels <- as.numeric(labels)-1
 ts_label <- as.numeric(ts_label)-1
 #add
+
+```
+
+
+
+```{r}
+#lasso
+library(glmnet)
+
+
+train = clean(paintings_train, NA.omit = T)
+test = clean(paintings_test, NA.omit = F)
+
+
+train=train%>%
+  select(logprice, Surface, dealer, endbuyer, diff_origin, type_intermed ,engraved , mat_recode,school_pntg_recode,paired , lrgfont ,lands_sc ,othgenre ,discauth, othartist,still_life,SurfaceNA,peasant,mytho)
+
+test=test%>%
+  select(logprice,Surface, dealer, endbuyer, diff_origin, type_intermed ,engraved , mat_recode,school_pntg_recode,paired , lrgfont ,lands_sc ,othgenre ,discauth, othartist,still_life,SurfaceNA,peasant,mytho)
+
+x = model.matrix(logprice~., train)
+y= train$logprice
+grid = 10^(seq(10,-2, length=100))
+
+lasso.mod= glmnet(x,y,alpha=1, lambda=grid)
+plot(lasso.mod)
+set.seed(1)
+
+cv.out = cv.glmnet(x,y, alpha=1)
+plot(cv.out)
+bestlam=cv.out$lambda.min
+lasso.mod2 = glmnet(x,y,alpha=1, lambda=bestlam)
+
+test=test%>%
+  mutate(logprice=1)
+x.test = model.matrix(logprice~.,test)
+pred=predict(lasso.mod2, x.test)
+
+pred=exp(pred)
+predictions = as.data.frame(pred)
+colnames(predictions) = c("fit")
+save(predictions, file = "predict-test.Rdata")
+
+
+out=glmnet(x,y,alpha=1, lambda=grid)
+lasso.coef=predict(out, type="coefficients", s=bestlam)
+lasso.coef
 
 ```
 
