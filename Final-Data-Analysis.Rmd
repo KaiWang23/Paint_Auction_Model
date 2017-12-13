@@ -46,53 +46,6 @@ The Code Book is in the file `paris_paintings.md` provides more information abou
 
 Using EDA and any numerical summaries get to know the data -  identify what you might consider the 10 best variables for predicting `logprice` using scatterplots with other variables represented using colors or symbols, scatterplot matrices or conditioning plots.  
 
-```{r echo=FALSE}
-test=paintings_train%>%
-  select(-sale,-year,-lot,-price,-authorstyle,-author,-Height_in,-Width_in,-Diam_in,-Surface_Rect,-Surface_Rnd,-material,-materialCat,-subject,-count,-other,-winningbidder,-Interm,-authorstandard,-school_pntg,-winningbiddertype,-Shape)
-
-
-factors=c("dealer","origin_author","origin_cat","diff_origin","mat","endbuyer","type_intermed","artistliving","engraved","original","prevcoll","othartist","paired","figures","finished","lrgfont","relig","landsALL","lands_sc","lands_elem","lands_figs","lands_ment","arch","mytho","peasant","othgenre","singlefig","portrait","still_life","discauth","history","allegory","pastorale")
-
-test[factors] = lapply(test[factors], factor)
-
-#test=test[test$position<1,]
-#test$nfigures=log(test$nfigures)
-
-#change na in surface to mean and transform
-mean.surface.test=mean(test$Surface[!is.na(test$Surface)])
-test$Surface[is.na(test$Surface)]=mean.surface.test
-
-
-if(FALSE){
-##not related with postition
-ggpairs(data = test[c( 2,9)],
-mapping = ggplot2::aes(y = logprice),cardinality_threshold = 20,
-lower = list(continuous = wrap("points", alpha = 0.3), combo = wrap("dot_no_facet", alpha = 0.4))
-)
-
-#surface unrelated
-test$Surface=log(test$Surface)
-ggpairs(data = test[c( 16,9)],
-mapping = ggplot2::aes(y = logprice),cardinality_threshold = 20,
-lower = list(continuous = wrap("points", alpha = 0.3), combo = wrap("dot_no_facet", alpha = 0.4))
-)
-
-#if figure =1, seems a positive linear relationship
-test$nfigures=log(test$nfigures)
-ggpairs(data = test[c( 18,9)],
-mapping = ggplot2::aes(y = logprice),cardinality_threshold = 20,
-lower = list(continuous = wrap("points", alpha = 0.3), combo = wrap("dot_no_facet", alpha = 0.4))
-)
-
-#test
-ggpairs(data = test[c(34,9)],
-mapping = ggplot2::aes(y = logprice),cardinality_threshold = 20,
-lower = list(continuous = wrap("points", alpha = 0.3), combo = wrap("dot_no_facet", alpha = 0.4))
-)
-}
-
-```
-
 ### Build your first model
 
 In the first model predict the auction price `price` using the transformation `logprice` using at least 10 up to 20 predictors and any interactions to build a model using linear regression.  You may use stepwise model selection to simplify the model using AIC and/or BIC.  For reference, we will fit the null model to initialize the leaderboard, but replace model1 with your recommended model.
@@ -182,41 +135,6 @@ You will be able to see your scores on the score board.  They will be initialize
 In this part you may go all out for constructing a best fitting model for predicting housing prices using methods that we have covered this semester.  You should feel free to to create any new variables (such as quadratic, interaction, or indicator variables, splines, etc) and try different methods, keeping in mind you should be able to explain your methods and results.
 
 Update your predictions using your complex model to provide point estimates and CI.
-
-```{r}
-#try BMA
-library(BAS)
-model2 = bas.lm(logprice ~ ., data=train,
-                prior="g-prior", a=nrow(train), modelprior=uniform(),
-                method="MCMC", MCMC.iterations = 200000, thin = 20)
-
-plot(model2)
-diagnostics(model2, type="pip")
-```
-
-
-```{r predict-model2, echo=FALSE}
-# replace model1 with model2 here
-load("paintings_test.Rdata")
-test =clean(paintings_test, NA.omit = F)
-
-model2$xlevels[["endbuyer"]] = union(model2$xlevels[["endbuyer"]], levels(test$endbuyer))
-model2$xlevels[["Shape"]] = union(model2$xlevels[["Shape"]], levels(test$Shape))
-
-predicitions = exp(predict(model2, newdata = test, estimator = "BMA", se.fit = TRUE, prediction = FALSE)) %>% as.data.frame() #need some modification
-save(predictions, file="predict-test.Rdata") 
-```
-
-```{r}
-#RMSE Function
-rmse = function(y, ypred){
-  rmse = sqrt(mean(y-ypred)^2)
-  return (rmse)
-}
-
-rmse(predicitions, paintings_train$logprice)
-```
-
 
 You may iterate here as much as you like exploring different models until you are satisfied with your results, however keep in mind you must be able to explain your results to the art historian.
 
