@@ -111,22 +111,20 @@ pred1=predict(fit,newdata = test, type="vector")
 
 
 ```{r}
+load("predict-test.Rdata")
+
 library(BAS)
-
-
 df.bas = bas.lm(logprice ~ .-lot, data=train,
 prior="g-prior", a=nrow(train), modelprior=uniform(),
-method="MCMC", MCMC.iterations = 200000, thin = 20)
-
-
-# df.bas$xlevels[["winningbiddertype"]] <- union(df.bas$xlevels[["winningbiddertype"]], levels(test$winningbiddertype))
-# 
-# df.bas$xlevels[["endbuyer"]] <- union(df.bas$xlevels[["endbuyer"]], levels(test$endbuyer))
-# 
-# 
-# df.bas$xlevels[["shape_recode"]] <- union(df.bas$xlevels[["shape_recode"]], 
-#                                           levels(test$shape_recode))
+method="MCMC", MCMC.iterations = 2000000, thin = 20)
 
 y.pred.bma = predict(df.bas, newdata = test, estimator = "BMA", se.fit = TRUE, prediction = FALSE)
+
+predictions = confint(y.pred.bma, parm = "pred")
+predictions = as.data.frame(matrix(predictions, nrow = nrow(test)))
+colnames(predictions) = c("lwr", "upr", "pred")
+predictions = predictions %>% select(pred, lwr, upr)
+
+save(predictions, file = "predict_test.Rdata")
 ```
 
