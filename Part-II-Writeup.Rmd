@@ -75,12 +75,12 @@ clean = function(df, NA.omit=F){
   return(df) 
 }
 
+train = clean(paintings_train, NA.omit = TRUE)
+test = clean(paintings_test, NA.omit = FALSE)
+
 for(i in setdiff(1:ncol(train), c(2,14,15))) {
   levels(train[,i]) = union(levels(train[,i]), levels(test[,i]))
 }
-
-train = clean(paintings_train, NA.omit = TRUE)
-test = clean(paintings_test, NA.omit = FALSE)
 ```
 
 
@@ -137,11 +137,11 @@ save(predictions, file = "predict-test.Rdata")
 ```{r}
 library(caret)
 
-cv.ctrl <- trainControl(method = "repeatedcv", repeats = 3,number = 1,
+cv.ctrl <- trainControl(method = "repeatedcv", repeats = 3,number = 3,
                         classProbs = TRUE,
                         allowParallel=T)
 
-xgb.grid <- expand.grid(nrounds = 1000,
+xgb.grid <- expand.grid(nrounds = 100,
                         eta = c(0.01,0.05,0.1,0.15,0.20),
                         lambda = c(0.1,0.2,0.3,0.4,0.5),
                         alpha = c(1))
