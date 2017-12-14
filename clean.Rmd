@@ -468,19 +468,9 @@ save(predictions, file = "predict-test.Rdata")
 ```{r}
 library(bartMachine)
 bart.test=bartMachine(X=x.train.new,y=y.train.new,verbose=FALSE)
-ci = calc_prediction_intervals(bart.test, x.test.new,pi_conf = 0.95, num_samples_per_data_point = 10000)
-ci = exp(ci)
-fit = predict(bart.test, new_data = x.test.new) %>% exp()
-fit.valid = predict(bart.test, new_data = x.test.valid)
-fit.train = predict(bart.test, new_data = x.train.new)
-
-rmse(exp(fit.train), y.train)
-rmse(fit, y.test)
-rmse(exp(fit.valid), y.valid)
-
-predictions = cbind(fit, ci) %>% as.data.frame()
-colnames(predictions) = c("fit","lwr","upr")
-save(predictions, file = "predict-test.Rdata")
+ci.test = calc_prediction_intervals(bart.test, x.test.new,pi_conf = 0.95, num_samples_per_data_point = 10000)
+ci.train = calc_prediction_intervals(bart.test, x.train.new,pi_conf = 0.95, num_samples_per_data_point = 10000)
+ci.valid = calc_prediction_intervals(bart.test, x.test.valid,pi_conf = 0.95, num_samples_per_data_point = 10000)
 ```
 
 
