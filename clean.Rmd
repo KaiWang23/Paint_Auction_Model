@@ -1,5 +1,5 @@
 ```{r}
-load("valid.Rdata")
+load("raw_valid.Rdata")
 load("paintings_test.Rdata")
 load("paintings_train.Rdata")
 load("raw_test.Rdata")
