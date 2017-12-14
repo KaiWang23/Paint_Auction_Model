@@ -400,7 +400,6 @@ valid.rmse8 = rmse(exp(as.numeric(valid.true$logprice)), exp(as.numeric(y.valid.
 #THE BEST
 
 ```{r}
-library(dplyr)
 library(BayesTree)
 x.train.new=train%>%
   dplyr::select(position,dealer , year , diff_origin ,origin_author, origin_cat, endbuyer , 
@@ -427,12 +426,12 @@ x.test.valid=valid.true%>%
     other, mat_recode, shape_recode
 
 )
-
-bart.nes.valid=bart(x.train=x.train.new,y.train=y.train.new,x.test=x.test.valid,verbose=FALSE)
-
-bart.nes.test=bart(x.train=x.train.new,y.train=y.train.new,x.test=x.test.new,verbose=FALSE)
-
-bart.nes.train=bart(x.train=x.train.new,y.train=y.train.new,x.test=x.train.new,verbose=FALSE)
+set.seed(12)
+bart.valid=bart(x.train=x.train.new,y.train=y.train.new,x.test=x.test.valid,verbose=FALSE,ndpost = 5000)
+set.seed(12)
+bart.test=bart(x.train=x.train.new,y.train=y.train.new,x.test=x.test.new,verbose=FALSE,ndpost = 5000)
+set.seed(12)
+bart.train=bart(x.train=x.train.new,y.train=y.train.new,x.test=x.train.new,verbose=FALSE,ndpost = 5000)
 
 
 pihat.bart.valid=apply(bart.nes.valid$yhat.test,2,mean)
@@ -451,9 +450,37 @@ y.train=exp(pihat.bart.train)
 
 valid.rmse9=rmse(exp(valid.true$logprice),y.valid)
 
-test.rmse9=rmse(exp(test$logprice),y.test)
+test.rmse9=rmse(exp(test.true$logprice),y.test)
 
 train.rmse9=rmse(exp(train$logprice),y.train)
+
+ci.test = t(exp(apply(bart.test$yhat.test,2,quantile, c(0.025,0.975))))
+
+
+predictions = data.frame(exp(pihat.bart.test), ci.test[,1], ci.test[,2])
+
+colnames(predictions) = c("fit", "lwr", "upr")
+
+
+save(predictions, file = "predict-test.Rdata")
+```
+
+```{r}
+library(bartMachine)
+bart.test=bartMachine(X=x.train.new,y=y.train.new,verbose=FALSE)
+ci = calc_prediction_intervals(bart.test, x.test.new,pi_conf = 0.95, num_samples_per_data_point = 10000)
+ci = exp(ci)
+fit = predict(bart.test, new_data = x.test.new) %>% exp()
+fit.valid = predict(bart.test, new_data = x.test.valid)
+fit.train = predict(bart.test, new_data = x.train.new)
+
+rmse(exp(fit.train), y.train)
+rmse(fit, y.test)
+rmse(exp(fit.valid), y.valid)
+
+predictions = cbind(fit, ci) %>% as.data.frame()
+colnames(predictions) = c("fit","lwr","upr")
+save(predictions, file = "predict-test.Rdata")
 ```
 
 

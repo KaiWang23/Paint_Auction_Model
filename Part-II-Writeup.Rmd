@@ -1,5 +1,5 @@
 ---
-title: "Part1 Analysis"
+title: "Part-II Writeup"
 author: "Team: SparkR"
 date: "2017/12/7"
 output: pdf_document
@@ -19,10 +19,13 @@ suppressMessages(library(xgboost))
 
 1. Introduction: Summary of problem and objectives (5 points)
 
-Late 18th century Paris has witnessed countless number of auctions on fine arts and paintings from countries across Europe. Our project utilizes this dataset from auction in 18th century Paris with details of paintings, authors and auctions. 
-We hope to build a OLS model to predict the log of price fetched at auction. Since our dataset contains 59 variables, we would want to perform variable selection to build a parsimonious model with good performance in critiria such as RMSE, etc. 
-In addition to that, some variables have a lot of missing values and typos. We would need to perform some sort of missing imputation, e.g. assume MCAR and use MICE package. For typos, we would recode them to appropriate values.
-From the correlation martices, we find some highly-correlated variables, so we decide to not include some of the variables in our model to aviod multicollinearity.
+Late 18th century Paris has witnessed countless number of auctions on fine arts and paintings from countries across Europe. Our project utilizes this dataset from auction in 18th century Paris with details of paintings, auctions, dealers and other third parties involved. 
+
+We hope to build a model to predict the log price fetched at auction. Since our dataset contains 59 variables, we would want to perform variable selection to build a parsimonious model with good performance in critiria such as RMSE, etc. For this part, since we are not restricted to OLS, we did more exploration into models we have learned this semester, e.g. random forest, boosting, bayesian additive regression, tree.
+
+In addition to that, some variables have a lot of missing values and typos. We would need to perform some sort of missing imputation, e.g. assume MCAR and use MICE package. For typos, we would recode them to appropriate values. During predicting with validation data, we found some new levels in some variables, e.g. material. So we modified our data cleaning process so our dataframe could be used for various models. 
+
+From the correlation martices, we find some highly-correlated variables, so we decide to not include some of the variables in our model to aviod multicollinearity. Algorithm such as gradient boosting handles highly correlated predictors very well, so models will be robust.
 
 2. Exploratory data analysis (10 points): must include three correctly labeled graphs and an explanation that highlight the most important features that went into your model building.
 
@@ -99,20 +102,6 @@ validation = clean.new(paintings_validation)%>% select(-lot)
 
 
 ```{r}
-library(tree)
-library(rpart)
-tree.nes=tree(logprice ~., data=train)
-cv.vote = cv.tree(tree.nes, FUN=prune.tree)
-prune.vote = prune.rpart(cv.vote,cp = 0.1)
-
-fit <- rpart(logprice ~ ., data = train)
-test =clean(paintings_test, NA.omit = F)
-fit$xlevels[["winningbiddertype"]] <- union(fit$xlevels[["winningbiddertype"]], levels(test$winningbiddertype))
-pred1=predict(fit,newdata = test, type="vector")
-```
-
-
-```{r}
 library(BAS)
 df.bas = bas.lm(logprice~Surface + dealer + endbuyer + diff_origin + type_intermed + engraved + mat_recode+school_pntg_recode+paired + lrgfont + lands_sc + othgenre + discauth + othartist+still_life, data=train,
 prior="g-prior", a=nrow(train), modelprior=uniform(),
@@ -137,7 +126,7 @@ save(predictions, file = "predict-test.Rdata")
 library(gbm)
 
 boost.logprice = gbm(logprice~., data=train, 
-                distribution="gaussian",n.trees =10000,
+                distribution="gaussian",n.trees =20000,
                 interaction.depth = 3)
 
 pred = predict(boost.logprice,newdata=test,n.trees=20000,
@@ -146,6 +135,24 @@ pred = exp(pred)
 predictions = as.data.frame(pred)
 colnames(predictions) = c("fit")
 save(predictions, file = "predict-test.Rdata")
+
+#training RMSE
+predictions.train = predict(boost.logprice,data=train,n.trees=10000,
+                       type="response") %>% exp() %>% as.data.frame()
+colnames(predictions.train) = c("fit")
+rmse(predictions.train$fit, exp(train$logprice))
+
+load("raw_test.Rdata")
+predictions = predict(boost.logprice, newdata = test, n.trees = 10000) %>% exp() %>% as.data.frame()
+colnames(predictions) = c("fit")
+rmse(predictions$fit, exp(test.raw$logprice))
+
+load("paintings_validation.Rdata")
+load("raw_valid.Rdata")
+validation = clean.new(paintings_validation, NA.omit = FALSE)
+predictions.valid = predict(boost.logprice, newdata = validation, n.trees = 10000) %>% exp() %>% as.data.frame()
+colnames(predictions.valid) = c("fit")
+rmse(predictions.valid$fit, exp(valid$logprice))
 ```
 
 ```{r}
@@ -269,11 +276,4 @@ lasso.coef
 
 ```
 
-#Introduction
-Late 18th century Paris has witnessed countless number of auctions on fine arts and paintings from countries across Europe. Our project utilizes this dataset from auction in 18th century Paris with details of paintings, auctions, dealers and other third parties involved. 
 
-We hope to build a model to predict the log price fetched at auction. Since our dataset contains 59 variables, we would want to perform variable selection to build a parsimonious model with good performance in critiria such as RMSE, etc. For this part, since we are not restricted to OLS, we did more exploration into models we have learned this semester, e.g. random forest, boosting, bayesian additive regression, tree.
-
-In addition to that, some variables have a lot of missing values and typos. We would need to perform some sort of missing imputation, e.g. assume MCAR and use MICE package. For typos, we would recode them to appropriate values. During predicting with validation data, we found some new levels in some variables, e.g. material. So we modified our data cleaning process so our dataframe could be used for various models. 
-
-From the correlation martices, we find some highly-correlated variables, so we decide to not include some of the variables in our model to aviod multicollinearity. Algorithm such as gradient boosting handles highly correlated predictors very well, so models will be robust.
