@@ -160,8 +160,34 @@ xgb_tune <-train(logprice~.,
 predictions = predict(xgb_tune, newdata = test[,-1]) %>% exp() %>% as.data.frame()
 colnames(predictions) = c("fit")
 save(predictions, file = "predict-test.Rdata")
+
+save(xgb_tune, file = "xgb.Rdata")
 ```
 
+```{r}
+rmse <- function(y, ypred) {
+  rmse <- sqrt(mean((y - ypred)^2))
+  return(rmse)
+}
+
+#training RMSE
+predictions.train = predict(xgb_tune, data = train[,-1]) %>% exp() %>% as.data.frame()
+colnames(predictions.train) = c("fit")
+rmse(predictions.train$fit, exp(train$logprice))
+
+load("raw_test.Rdata")
+predictions = predict(xgb_tune, newdata = test[,-1]) %>% exp() %>% as.data.frame()
+colnames(predictions) = c("fit")
+rmse(predictions$fit, exp(test.raw$logprice))
+
+load("paintings_validation.Rdata")
+load("raw_valid.Rdata")
+validation = clean(paintings_validation, NA.omit = FALSE)
+predictions.valid = predict(xgb_tune, newdata = validation[,-1]) %>% exp() %>% as.data.frame()
+colnames(predictions.valid) = c("fit")
+rmse(predictions.valid$fit, exp(valid$logprice))
+
+```
 
 ```{r}
 #lasso
@@ -208,21 +234,5 @@ lasso.coef
 
 ```
 
-```{r}
-load("raw_test.Rdata")
 
-rmse <- function(y, ypred) {
-rmse <- sqrt(mean((y - ypred)^2))
-return(rmse)
-}
-
-rmse(predictions$fit, exp(test.raw$logprice))
-
-load("valid.Rdata")
-validation = clean(paintings_validation, NA.omit = FALSE)
-predictions = predict(xgb_tune, newdata = validation[,-1]) %>% exp() %>% as.data.frame()
-colnames(predictions) = c("fit")
-rmse(predictions$fit, exp(valid$logprice))
-
-```
 
