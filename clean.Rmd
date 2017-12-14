@@ -1,0 +1,62 @@
+```{r}
+load("valid.Rdata")
+load("paintings_test.Rdata")
+load("paintings_train.Rdata")
+load("raw_test.Rdata")
+load("paintings_validation.Rdata")
+clean.new = function(df, NA.omit=F){
+   df = df %>% 
+     select(-c(sale, price, count, subject, winningbidder, authorstandard, authorstyle, author, Height_in, Width_in, Surface_Rect, Diam_in, winningbiddertype, Surface_Rnd,material,materialCat, Interm)) %>%
+     mutate(lot = as.numeric(lot)) %>%
+     mutate(mat=as.character(mat))%>%
+     mutate(mat_recode = ifelse(mat %in% c("a", "bc", "c"), "metal",
+                          ifelse(mat %in% c("al", "ar", "m"), "other",
+                                ifelse(mat %in% c("co", "bt", "t"), "canvas",
+                                       ifelse(mat %in% c("p", "ca"), "paper",
+                                              ifelse(mat %in% c("b"), "wood",
+                                                     ifelse(mat %in% c("o", "e", "v"), "other",
+                                                            ifelse(mat %in% c("n/a", ""), "na",
+                                                                   "other")))))))) %>%
+     mutate(school_pntg=as.character(school_pntg))%>%
+     mutate(school_pntg_recode = ifelse(school_pntg %in% c("A", "G", "S"), "other",school_pntg)) %>%
+     mutate(origin_cat=ifelse(origin_cat %in% c("X","S"),"O",origin_cat))%>%
+     mutate(SurfaceNA = ifelse(is.na(df$Surface), 1, 0))%>%
+     mutate(nfigures=as.numeric(nfigures))%>%
+     mutate(Surface=log(Surface+1))%>%
+     mutate(endbuyer=as.character(endbuyer))%>%
+     mutate(endbuyer = ifelse(endbuyer == "", "NA", endbuyer)) %>% 
+     mutate(Shape=as.character(Shape))%>%
+   mutate(shape_recode = ifelse(Shape == "", "Other",
+                               ifelse(Shape == "ovale", "oval",
+                                      ifelse(Shape == "ronde", "round",
+                                             ifelse(Shape == "octogon", "Other", Shape)))))%>% 
+     select(-c(mat,school_pntg, Shape))%>%
+     mutate(type_intermed=as.character(type_intermed))%>%
+     mutate(type_intermed=ifelse(type_intermed == "EB","B",type_intermed))
+   
+   
+   factornames=colnames(df)[!colnames(df) %in% c("logprice","lot","position","Surface","nfigures")] 
+   
+   
+   df[factornames] = lapply(df[factornames], factor)
+
+   df$Surface[is.na(df$Surface)] = 0
+  
+  
+   if(NA.omit==T){
+      df = na.omit(df)
+   }
+
+
+   #df=df[vapply(df, function(x) length(unique(x)) > 1, logical(1L))]
+   
+  return(df) 
+}
+
+
+train = clean.new(paintings_train)
+test = clean.new(paintings_test)
+test.true = clean.new(test.raw)
+valid.true = clean.new(valid)
+valid = clean.new(paintings_validation)
+```
