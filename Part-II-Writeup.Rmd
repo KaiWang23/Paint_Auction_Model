@@ -209,11 +209,20 @@ lasso.coef
 ```
 
 ```{r}
-load()
+load("raw_test.Rdata")
 
 rmse <- function(y, ypred) {
 rmse <- sqrt(mean((y - ypred)^2))
 return(rmse)
 }
+
+rmse(predictions$fit, exp(test.raw$logprice))
+
+load("valid.Rdata")
+validation = clean(paintings_validation, NA.omit = FALSE)
+predictions = predict(xgb_tune, newdata = validation[,-1]) %>% exp() %>% as.data.frame()
+colnames(predictions) = c("fit")
+rmse(predictions$fit, exp(valid$logprice))
+
 ```
 
