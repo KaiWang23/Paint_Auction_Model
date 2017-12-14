@@ -136,11 +136,11 @@ save(predictions, file = "predict-test.Rdata")
 ```{r}
 library(gbm)
 
-boost.logprice =gbm(logprice~Surface + dealer + endbuyer + diff_origin + type_intermed + engraved + mat_recode+school_pntg_recode+paired + lrgfont + lands_sc + othgenre + discauth + othartist+still_life, data=train, 
+boost.logprice = gbm(logprice~., data=train, 
                 distribution="gaussian",n.trees =10000,
                 interaction.depth = 3)
 
-pred = predict(boost.logprice,newdata=test,n.trees=10000,
+pred = predict(boost.logprice,newdata=test,n.trees=20000,
                        type="response")
 pred = exp(pred)
 predictions = as.data.frame(pred)
@@ -151,29 +151,41 @@ save(predictions, file = "predict-test.Rdata")
 ```{r}
 library(caret)
 
+train.new=train%>%
+  dplyr::select(position,dealer , year , diff_origin ,origin_author, origin_cat, endbuyer , 
+    type_intermed , Surface , nfigures , engraved , prevcoll , artistliving,original,othartist,
+    paired , finished , lrgfont,  othgenre , portrait , still_life , figures,relig,landsALL,
+    discauth , school_pntg_recode , SurfaceNA,lands_sc, singlefig, history,allegory, pastorale,
+    other, mat_recode, shape_recode, logprice)
+
+test.new = test %>% 
+  dplyr::select(position,dealer , year , diff_origin ,origin_author, origin_cat, endbuyer , 
+    type_intermed , Surface , nfigures , engraved , prevcoll , artistliving,original,othartist,
+    paired , finished , lrgfont,  othgenre , portrait , still_life , figures,relig,landsALL,
+    discauth , school_pntg_recode , SurfaceNA,lands_sc, singlefig, history,allegory, pastorale,
+    other, mat_recode, shape_recode, logprice)
+
 cv.ctrl <- trainControl(method = "repeatedcv", repeats = 3,number = 3,
                         classProbs = TRUE,
                         allowParallel=T)
 
-xgb.grid <- expand.grid(nrounds = 100,
+xgb.grid <- expand.grid(nrounds = 500,
                         eta = seq(0.01, 0.31, by = 0.03),
                         lambda = seq(0.1, 1, by = 0.1),
                         alpha = 0.5)
-temp = rbind(train, test)
-
 set.seed(45)
 xgb_tune <-train(logprice~.,
-                 data=train,
+                 data=train.new,
                  trControl = cv.ctrl,
                  method="xgbLinear",
                  tuneGrid=xgb.grid,
-                 gamma = 2.5,
+                 gamma = 1,
                  nthread = 8,
                  metric = "RMSE",
                  maximize = FALSE
     )
 
-predictions = predict(xgb_tune, newdata = test) %>% exp() %>% as.data.frame()
+predictions = predict(xgb_tune, newdata = test.new) %>% exp() %>% as.data.frame()
 colnames(predictions) = c("fit")
 save(predictions, file = "predict-test.Rdata")
 
@@ -199,6 +211,14 @@ rmse(predictions$fit, exp(test.raw$logprice))
 load("paintings_validation.Rdata")
 load("raw_valid.Rdata")
 validation = clean.new(paintings_validation, NA.omit = FALSE)
+
+validation.new = validation %>% 
+  dplyr::select(position,dealer , year , diff_origin ,origin_author, origin_cat, endbuyer , 
+    type_intermed , Surface , nfigures , engraved , prevcoll , artistliving,original,othartist,
+    paired , finished , lrgfont,  othgenre , portrait , still_life , figures,relig,landsALL,
+    discauth , school_pntg_recode , SurfaceNA,lands_sc, singlefig, history,allegory, pastorale,
+    other, mat_recode, shape_recode, logprice)
+
 predictions.valid = predict(xgb_tune, newdata = validation) %>% exp() %>% as.data.frame()
 colnames(predictions.valid) = c("fit")
 rmse(predictions.valid$fit, exp(valid$logprice))
@@ -249,5 +269,11 @@ lasso.coef
 
 ```
 
+#Introduction
+Late 18th century Paris has witnessed countless number of auctions on fine arts and paintings from countries across Europe. Our project utilizes this dataset from auction in 18th century Paris with details of paintings, auctions, dealers and other third parties involved. 
 
+We hope to build a model to predict the log price fetched at auction. Since our dataset contains 59 variables, we would want to perform variable selection to build a parsimonious model with good performance in critiria such as RMSE, etc. For this part, since we are not restricted to OLS, we did more exploration into models we have learned this semester, e.g. random forest, boosting, bayesian additive regression, tree.
 
+In addition to that, some variables have a lot of missing values and typos. We would need to perform some sort of missing imputation, e.g. assume MCAR and use MICE package. For typos, we would recode them to appropriate values. During predicting with validation data, we found some new levels in some variables, e.g. material. So we modified our data cleaning process so our dataframe could be used for various models. 
+
+From the correlation martices, we find some highly-correlated variables, so we decide to not include some of the variables in our model to aviod multicollinearity. Algorithm such as gradient boosting handles highly correlated predictors very well, so models will be robust.
