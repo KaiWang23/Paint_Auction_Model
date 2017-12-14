@@ -31,34 +31,44 @@ From the correlation martices, we find some highly-correlated variables, so we d
 ###Function to clean the dataset
 
 #load the training data set
-load("paintings_train.Rdata")
+load("raw_valid.Rdata")
 load("paintings_test.Rdata")
-
-clean = function(df, NA.omit=F){
+load("paintings_train.Rdata")
+load("raw_test.Rdata")
+load("paintings_validation.Rdata")
+clean.new = function(df, NA.omit=F){
    df = df %>% 
      select(-c(sale, price, count, subject, winningbidder, authorstandard, authorstyle, author, Height_in, Width_in, Surface_Rect, Diam_in, winningbiddertype, Surface_Rnd,material,materialCat, Interm)) %>%
      mutate(lot = as.numeric(lot)) %>%
+     mutate(mat=as.character(mat))%>%
      mutate(mat_recode = ifelse(mat %in% c("a", "bc", "c"), "metal",
-                          ifelse(mat %in% c("al", "ar", "m"), "stone",
+                          ifelse(mat %in% c("al", "ar", "m"), "other",
                                 ifelse(mat %in% c("co", "bt", "t"), "canvas",
                                        ifelse(mat %in% c("p", "ca"), "paper",
                                               ifelse(mat %in% c("b"), "wood",
                                                      ifelse(mat %in% c("o", "e", "v"), "other",
                                                             ifelse(mat %in% c("n/a", ""), "na",
-                                                                   "na")))))))) %>%
+                                                                   "other")))))))) %>%
+     mutate(school_pntg=as.character(school_pntg))%>%
      mutate(school_pntg_recode = ifelse(school_pntg %in% c("A", "G", "S"), "other",school_pntg)) %>%
      mutate(origin_cat=ifelse(origin_cat %in% c("X","S"),"O",origin_cat))%>%
      mutate(SurfaceNA = ifelse(is.na(df$Surface), 1, 0))%>%
      mutate(nfigures=as.numeric(nfigures))%>%
      mutate(Surface=log(Surface+1))%>%
+     mutate(endbuyer=as.character(endbuyer))%>%
      mutate(endbuyer = ifelse(endbuyer == "", "NA", endbuyer)) %>% 
+     mutate(Shape=as.character(Shape))%>%
    mutate(shape_recode = ifelse(Shape == "", "Other",
                                ifelse(Shape == "ovale", "oval",
                                       ifelse(Shape == "ronde", "round",
-                                             ifelse(Shape == "octogon", "Other", Shape)))))%>% 
-     select(-c(mat,school_pntg, Shape))
+                                             ifelse(Shape %in% c("octogon","octagon"), "Other", Shape)))))%>%
+     select(-c(mat,school_pntg, Shape))%>%
+     mutate(type_intermed=as.character(type_intermed))%>%
+     mutate(type_intermed=ifelse(type_intermed == "EB","B",type_intermed))
    
-   factornames=colnames(df)[!colnames(df) %in% c("logprice","lot","position","Surface","nfigures")]
+   
+   factornames=colnames(df)[!colnames(df) %in% c("logprice","lot","position","Surface","nfigures")] 
+   
    
    df[factornames] = lapply(df[factornames], factor)
 
@@ -75,12 +85,16 @@ clean = function(df, NA.omit=F){
   return(df) 
 }
 
-train = clean(paintings_train, NA.omit = TRUE)
-test = clean(paintings_test, NA.omit = FALSE)
-
-for(i in setdiff(1:ncol(train), c(2,14,15))) {
-  levels(train[,i]) = union(levels(train[,i]), levels(test[,i]))
+rmse <- function(y, ypred) {
+rmse <- sqrt(mean((y - ypred)^2))
+return(rmse)
 }
+
+train = clean.new(paintings_train) %>% select(-lot)
+test = clean.new(paintings_test)%>% select(-lot)
+test.true = clean.new(test.raw) %>% select(-lot)
+valid.true = clean.new(valid) %>% select(-lot)
+validation = clean.new(paintings_validation)%>% select(-lot)
 ```
 
 
@@ -142,22 +156,24 @@ cv.ctrl <- trainControl(method = "repeatedcv", repeats = 3,number = 3,
                         allowParallel=T)
 
 xgb.grid <- expand.grid(nrounds = 100,
-                        eta = seq(0.01, 0.21, by = 0.05),
+                        eta = seq(0.01, 0.31, by = 0.03),
                         lambda = seq(0.1, 1, by = 0.1),
-                        alpha = 1)
-
+                        alpha = 0.5)
+temp = rbind(train, test)
 
 set.seed(45)
 xgb_tune <-train(logprice~.,
-                 data=train[-1],
+                 data=train,
                  trControl = cv.ctrl,
                  method="xgbLinear",
                  tuneGrid=xgb.grid,
-                 gamma = 1,
-                 nthread = 8
+                 gamma = 2.5,
+                 nthread = 8,
+                 metric = "RMSE",
+                 maximize = FALSE
     )
 
-predictions = predict(xgb_tune, newdata = test[,-1]) %>% exp() %>% as.data.frame()
+predictions = predict(xgb_tune, newdata = test) %>% exp() %>% as.data.frame()
 colnames(predictions) = c("fit")
 save(predictions, file = "predict-test.Rdata")
 
@@ -171,22 +187,21 @@ rmse <- function(y, ypred) {
 }
 
 #training RMSE
-predictions.train = predict(xgb_tune, data = train[,-1]) %>% exp() %>% as.data.frame()
+predictions.train = predict(xgb_tune, data = train) %>% exp() %>% as.data.frame()
 colnames(predictions.train) = c("fit")
 rmse(predictions.train$fit, exp(train$logprice))
 
 load("raw_test.Rdata")
-predictions = predict(xgb_tune, newdata = test[,-1]) %>% exp() %>% as.data.frame()
+predictions = predict(xgb_tune, newdata = test) %>% exp() %>% as.data.frame()
 colnames(predictions) = c("fit")
 rmse(predictions$fit, exp(test.raw$logprice))
 
 load("paintings_validation.Rdata")
 load("raw_valid.Rdata")
-validation = clean(paintings_validation, NA.omit = FALSE)
-predictions.valid = predict(xgb_tune, newdata = validation[,-1]) %>% exp() %>% as.data.frame()
+validation = clean.new(paintings_validation, NA.omit = FALSE)
+predictions.valid = predict(xgb_tune, newdata = validation) %>% exp() %>% as.data.frame()
 colnames(predictions.valid) = c("fit")
 rmse(predictions.valid$fit, exp(valid$logprice))
-
 ```
 
 ```{r}
