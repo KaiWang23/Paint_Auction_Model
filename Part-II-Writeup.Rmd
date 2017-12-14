@@ -142,9 +142,9 @@ cv.ctrl <- trainControl(method = "repeatedcv", repeats = 3,number = 3,
                         allowParallel=T)
 
 xgb.grid <- expand.grid(nrounds = 100,
-                        eta = c(0.01,0.05,0.1,0.15,0.20),
-                        lambda = c(0.1,0.2,0.3,0.4,0.5),
-                        alpha = c(1))
+                        eta = seq(0.01, 0.21, by = 0.05),
+                        lambda = seq(0.1, 1, by = 0.1),
+                        alpha = 1)
 
 
 set.seed(45)
@@ -153,7 +153,7 @@ xgb_tune <-train(logprice~.,
                  trControl = cv.ctrl,
                  method="xgbLinear",
                  tuneGrid=xgb.grid,
-                 gamma = 0.5,
+                 gamma = 1,
                  nthread = 8
     )
 
@@ -206,5 +206,14 @@ out=glmnet(x,y,alpha=1, lambda=grid)
 lasso.coef=predict(out, type="coefficients", s=bestlam)
 lasso.coef
 
+```
+
+```{r}
+load()
+
+rmse <- function(y, ypred) {
+rmse <- sqrt(mean((y - ypred)^2))
+return(rmse)
+}
 ```
 
