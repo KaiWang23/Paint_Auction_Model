@@ -326,16 +326,6 @@ After comparing the training(calculated locally) and testing RMSE(from the leade
  
  After we selected the predictors, we would like to compare the models, we used the training and testing rmse summarized in the following table 1:
  
-```{r, echo=FALSE}
-table=cbind(c(train.rmse.lasso,train.rmse.BMA,train.rmse.BART,train.rmse.RF),c(1677.637,1527.9337,1423.688,1487.458))
-colnames(table)=c("Training RMSE","Testing RMSE")
-rownames(table)=c("LASSO","BMA","BART","Random Forest")
-kable(table)
-```
-Based on the table(testing RMSEs are form the leaderboard), among the models, BART and Random Forest has relatively low testing RMSE below 1500. However, Random Forest is possibly overfitting the test data with relatively high training RMSE while BART has the lowest training RMSE. Moreover, BART performs better than LASSO and BMA in both training and testing RMSE. Thus, we selected BART with the predictors selected previously as our final model.
- 
-
-
 ```{r}
 #random forest
 library(randomForest)
@@ -489,10 +479,22 @@ y.train=exp(pihat.bart.train)
 
 #calculate the training rmse for BART
 train.rmse.BART=rmse(exp(train$logprice),y.train)
+```
 
+```{r, echo=FALSE}
+table=cbind(c(train.rmse.lasso,train.rmse.BMA,train.rmse.BART,train.rmse.RF),c(1677.637,1527.9337,1423.688,1487.458))
+colnames(table)=c("Training RMSE","Testing RMSE")
+rownames(table)=c("LASSO","BMA","BART","Random Forest")
+kable(table)
+```
+Based on the table(testing RMSEs are form the leaderboard), among the models, BART and Random Forest has relatively low testing RMSE below 1500. However, Random Forest is possibly overfitting the test data with relatively high training RMSE while BART has the lowest training RMSE. Moreover, BART performs better than LASSO and BMA in both training and testing RMSE. Thus, we selected BART with the predictors selected previously as our final model. 
+
+
+ * Residual Plot and Discussion
+```{r}
 #residual plot for BART
 residual = scale(pihat.bart.train - train$logprice)
-ggplot(data.frame(cbind(residual,  train$logprice)), aes(x= pihat.bart.train, y=residual)) +
+ggplot(data.frame(cbind(residual,  train$logprice)), aes(x= pihat.bart.train, y=as.numeric(residual))) +
     geom_point(shape=1)  +
     ggtitle("Residual Plot for BART Regression") +
     labs(x="Fitted Value for log(Price)",y="Standardize Residual") 
@@ -500,8 +502,13 @@ ggplot(data.frame(cbind(residual,  train$logprice)), aes(x= pihat.bart.train, y=
 #BART test rmse
 #1487.458
 ```
+Discussion:from the Residuals vs. Fitted diagram, we can see no distinct pattern indicating non-linear relationship. Residuals are generally equally distributed around a horizontal line. Therefore, the linear relationship assumption appears to be met.
 
+
+ * How Prediction Intervals Obtained  
+ 
 Note that for the confidence interval, we used "bartMachine". Since "BayesTree" package has a built-in predict function, since it's uses bootstrap method and running long iterations is painfully slow. But small sample size could be inappropirate to construct a prediction interval. Hence we uses "bartMachine" which parallelize its calculation and runs much faster.
+
 
 5. Assessment of the final model (25 points)
 
@@ -539,7 +546,24 @@ As the result shows, all top 10 price painting are involved with Dealer R, and t
 
 6. Conclusion (10 points): must include a summary of results and a discussion of things learned. Optional what would you do if you had more time.
 
-#Conclusion
+#Conclusion  
+
+Summary of Results:  
+
+The performances of the models in Part I and Part II on the testing and training data sets are summarized in the following table.
+```{r}
+##test rmse 1272.9
+##train rmse 2145.83
+lm.results=c(2145.83,1272.9)
+table=rbind(table,lm.results)
+rownames(table)[5]="OLS"
+kable(table)
+```
+
+As we can see from the table above, for our OLS model in Part I, although we achieved the lowest testing RMSE, we found that the OLS model has overfitted the test data set and therefore the resulting training RMSE is extremly high. For the OLS model, in the summary, we have R-squared equal to 0.5899, which suggests that 58.99% of the variation has been explained by our predictors.  
+
+In Part II, we tried to resolve our problem by balancing the performance of our models on testing and training data sets. We tried LASSO, BMA, Random Forest and BART models with predictors selected by AIC, BIC and posterior probability in BMA. It turns out that the BART model with the predictors selected under AIC gave us the overall lowest and training and testing RMSE as well as relative balanced performance over testing and training data sets. 
+
 
 Things learned:
 
