@@ -534,6 +534,26 @@ As mentioned above, we have tested other models as well, even though Bart lack o
 The results for the top 10 valued  paintings in the validation data are shown below:
 
 ```{r}
+load("paintings_validation.Rdata")
+
+
+validation = clean.new(paintings_validation)%>% select(-lot)
+
+x.test.valid=validation%>%
+  dplyr::select(position,dealer , year , diff_origin ,origin_author, origin_cat, endbuyer , 
+    type_intermed , Surface , nfigures , engraved , prevcoll , artistliving,original,othartist,
+    paired , finished , lrgfont,  othgenre , portrait , still_life , figures,relig,landsALL,
+    discauth , school_pntg_recode , SurfaceNA,lands_sc, singlefig, history,allegory, pastorale,
+    other, mat_recode, shape_recode
+
+)
+set.seed(1)
+
+bart.nes.valid=bart(x.train=x.train.new,y.train=y.train.new,x.test=x.test.valid,verbose=FALSE)
+
+pihat.bart.valid=apply(bart.nes.valid$yhat.test,2,mean)
+
+
 paintings_validation$price_pred = exp(pihat.bart.valid)
 
 part_valid = paintings_validation %>% select(dealer, endbuyer, authorstandard, subject,lrgfont, price_pred) %>% 
