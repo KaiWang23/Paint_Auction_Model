@@ -20,6 +20,7 @@ suppressMessages(library(BayesTree))
 suppressMessages(library(randomForest))
 suppressMessages(library(BAS))
 suppressMessages(library(gbm))
+suppressMessages(library(GGally))
 ```
 
 #Introduction
@@ -271,23 +272,14 @@ grid.arrange(plot_wo_filter,plot_w_filter,plot_sqrt_trans,plot_log_trans,ncol=2)
 
 At a first galance, we do not observe any significant linear relationship between the response: "log(price)" and the predictor: "Surface". After we remove some outliers and zeroes(0 surface is not meaningful), we do not achieve much improvement. Therefore, we decide to use transformations on "Surface". First, we take the squre root on "Surface". As we can see, the points are less concentrated and more normally distributed after the tansformation. When using log transformation, we have the distribution of log(Surface) very close to normal distribution. Under log transformation, we still cannot see any obvious linear relationship between the response and the predictor. However, when we perform variable selection under Bayesian information criterion, we would have "Surface", log transformed, included in the final model with a positive coefficient and a relatively small p-value. By intuition, the inclusion of Surface in the model makes sense because paintings with larger surface would probably correpond to more amount of work and more painting materials used and therefore higher prices.
 
-Fourth, we discover serious issue in our previous model:
-
-```{r fig3, fig.width=12, fig.height=8}
-
-lm.test = lm(logprice~Surface + dealer + endbuyer + diff_origin + type_intermed + engraved + mat_recode+school_pntg_recode+paired + lrgfont + lands_sc + othgenre + discauth + othartist+still_life,
-   data = test)
-
-lm.train = lm(logprice~Surface + dealer + endbuyer + diff_origin + type_intermed + engraved + mat_recode+school_pntg_recode+paired + lrgfont + lands_sc + othgenre + discauth + othartist+still_life,
-             data = train)
-
-par(mfrow = c(2,2))
-plot(lm.train, c(1:2))
-plot(lm.test, c(1:2))
+```{r echo=FALSE, warning=FALSE}
+train.copy = paintings_train %>% 
+  select(lot,position,Surface,logprice,nfigures) %>% 
+  mutate(lot = as.numeric(lot))
+ggpairs(train.copy)
 ```
 
-As you might remember from the part I, the upper half is the diagnostic plot using our proposed model in trainning data, even thogh from residuals vs fitted plot, residuals are around 0 and variance about the same in all range of expected value; from normal Q-Q plot, there is no indication of violation of normality. However, the lower part reveal different information, as we use the same regression model in the test data, there is a significant problem of overfitting, since all the residuals are bascially lying arond zero, the residuals show no sign of normally distributed, as the model can "perfectly" all the data point in test data. Hence, in our future model, we need to use different approach  to predict validation data.
-
+In our trainining data set, we also observed some predictors which could posssibly be highly corelated with each other. For example, "Surface" could possibly be related to "nfigures" since paintings with more figures tend to be larger than those with less figures. Moreover, "lot" could also be related with "position". We then use ggpairs() to check whether these collinearity exist. As the correlation matrix suggests, "lot" and "position" are highly corellated, therefore, we can drop one of them from our data frame. On the other hand, "Surface" and "nfigures" are not as highly corralated as we prceived. Therefore, we would like to include both predictors in our model. Moreover, position have some wrong data that are greater than 1.
 
 #Discussion of preliminary model Part I
 
