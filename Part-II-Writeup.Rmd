@@ -6,7 +6,8 @@ output: pdf_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+#load the necessart packages
+knitr::opts_chunk$set(echo = FALSE, warning=FALSE, message=FALSE)
 suppressMessages(library(ggplot2))
 suppressMessages(library(dplyr))
 suppressMessages(library(reshape2))
@@ -15,6 +16,10 @@ suppressMessages(library(gridExtra))
 suppressMessages(library(grid))
 suppressMessages(library(knitr))
 suppressMessages(library(xgboost))
+suppressMessages(library(BayesTree))
+suppressMessages(library(randomForest))
+suppressMessages(library(BAS))
+suppressMessages(library(gbm))
 ```
 
 1. Introduction: Summary of problem and objectives (5 points)
@@ -27,18 +32,17 @@ In addition to that, some variables have a lot of missing values and typos. We w
 
 From the correlation martices, we find some highly-correlated variables, so we decide to not include some of the variables in our model to aviod multicollinearity. Algorithm such as gradient boosting handles highly correlated predictors very well, so models will be robust.
 
-2. Exploratory data analysis (10 points): must include three correctly labeled graphs and an explanation that highlight the most important features that went into your model building.
+2. Exploratory data analysis (10 points): must include three correctly labeled graphs and an explanation that highlight the most important features that went into your model building.  
 
-
-```{r echo=FALSE, warning=FALSE}
-###Function to clean the dataset
-
-#load the training data set
-load("raw_valid.Rdata")
+```{r echo=FALSE,warning=FALSE}
+#load the necessary data sets
 load("paintings_test.Rdata")
 load("paintings_train.Rdata")
-load("raw_test.Rdata")
-load("paintings_validation.Rdata")
+```
+
+
+```{r echo=FALSE,warning=FALSE}
+#function to clean the training and testing data sets
 clean.new = function(df, NA.omit=F){
    df = df %>% 
      select(-c(sale, price, count, subject, winningbidder, authorstandard, authorstyle, author, Height_in, Width_in, Surface_Rect, Diam_in, winningbiddertype, Surface_Rnd,material,materialCat, Interm)) %>%
@@ -82,199 +86,454 @@ clean.new = function(df, NA.omit=F){
       df = na.omit(df)
    }
 
-
-   #df=df[vapply(df, function(x) length(unique(x)) > 1, logical(1L))]
-   
   return(df) 
 }
 
+#function to calculate rmse
 rmse <- function(y, ypred) {
 rmse <- sqrt(mean((y - ypred)^2))
 return(rmse)
 }
+```
 
+
+```{r echo=FALSE,warning=FALSE}
+#clean the training and testing data sets
 train = clean.new(paintings_train) %>% select(-lot)
 test = clean.new(paintings_test)%>% select(-lot)
-test.true = clean.new(test.raw) %>% select(-lot)
-valid.true = clean.new(valid) %>% select(-lot)
-validation = clean.new(paintings_validation)%>% select(-lot)
+```
+
+For this part, we intially have found some interaction between predictors from graph perspective; however, in our further model selection process and trials and error.
+
+First, we choose to plot boxplots for the variables that are highly correlated with response `logprice`
+
+```{r echo=FALSE, warning=FALSE}
+train_sub1 = train %>% select(logprice, dealer, endbuyer, type_intermed, lrgfont)
+
+
+df1 = train %>% 
+  select(logprice, dealer) 
+
+df2 = train %>% 
+  select(logprice, endbuyer)
+
+df3 = train %>% 
+  select(logprice, type_intermed)
+
+df4 = train %>% 
+  select(logprice, lrgfont) 
+
+# df1.final = rbind(df1,df2,df3, df4)
+# 
+# ggplot(train, aes(x=type, y= logprice)) +
+#   facet_wrap(~type) +
+#   geom_boxplot()
+```
+
+```{r echo=FALSE, warning=FALSE}
+g1 = ggplot(df1, aes(x=dealer, y= logprice)) +
+  geom_boxplot(color="#999999",  alpha=0.8)
+g2 = ggplot(df2, aes(x=endbuyer, y= logprice)) +
+  geom_boxplot(color="#E69F00",  alpha=0.8)
+g3 = ggplot(df3, aes(x=type_intermed, y= logprice)) +
+  geom_boxplot(color="#56B4E9",  alpha=0.8)
+g4 = ggplot(df4, aes(x=lrgfont, y= logprice)) +
+  geom_boxplot(color="purple",  alpha=0.8)
+
+grid.arrange(g1, g2,g3,g4, ncol=2, top=textGrob("Boxplot for 4 most 'significant' variables", gp=gpar(fontsize=12,font=8)))
+```
+
+
+As we can see, for these four factor variables, each level has differernt means and distributions across, for examle, doing business with dealer R may not be a good deal, since they tend to have higher price, but it could also be the case that they tend to sell higher value painting; also, collectors tend bid higher price compared with other end buyers; from type of inttype of intermediary perspective, experts tend to have higher price in mind,(becasue they know the true intrinsic value?), lastly, if dealer have more information about the paintings, the final price will be higher as well. Therefore, it is likely human factors(especially type of dealer) play an important role on deciding the final bidding price, and we will expect they will "survive" after model selection process.
+
+
+Second, we try to find  some interaction effect between predictors using tree models.
+
+```{r echo=FALSE, warning=FALSE}
+# library(tree)
+# tree.vote =tree(logprice ~ ., data= train)
+# summary(tree.vote)
+# plot(tree.vote)
+# text(tree.vote, cex=.75)
+# 
+# #Pruning
+# set.seed(2)
+# cv.vote = cv.tree(tree.vote, FUN=prune.tree)
+# plot(cv.vote$size,cv.vote$dev, type="b")
+# prune.vote = prune.tree(tree.vote ,best =11)
+# plot(prune.vote)
+# text(prune.vote, cex=.75)
+suppressMessages(library(RColorBrewer))
+
+
+df5 = paintings_train %>% 
+  select(price, year, school_pntg) %>% 
+  mutate(year = as.character(year)) %>% 
+  mutate(year = as.numeric(year)) %>%
+  mutate(price = as.numeric(price)) %>% 
+  filter(!is.na(price)) %>% 
+  group_by(year, school_pntg) %>% 
+  summarize(average = sum(price)/n())%>% 
+  group_by(school_pntg)
+
+
+ggplot(data = df5, aes(x = year, y= average, col = school_pntg)) +
+  geom_line(size = 1.5) +
+  scale_color_brewer(type = 'div', palette = 'Spectral')+
+  xlab("Year of sale")+
+  ylab("Average price")+
+  ggtitle("Average price of differnt school of paintings on each year") +
+  labs(col = "School of Paintings") +
+  theme_bw()
+
+```
+
+Since when plotting average logprice, all the line lie between each other, we decide to plot price in original scale instead. As you can see from the plot, Dutch/Flemish and French school of paintings tend to have a higher average price in the year between 1765 and 1778, with the maximum across the group, Dutch/Flemish has the average price over 600 dollars for the paintings in the year around 1770(possibly becasue of the decease of some well-known artists);Even though Italian has lowever in the earlier year, they do have higher price in post-1777 era. With all these observations, it suggests there will be "some" interaction effect between  `school_pntg` and `year` that affect the overall price of paintings.
+
+Third, we dive into predictors transformation:
+
+```{r echo=FALSE}
+
+
+#copy the training data
+
+plot_surface=paintings_train%>%
+
+  filter(!is.na(Surface))%>%
+
+  select(logprice,Surface)
+
+
+
+#before filtering
+
+plot_wo_filter = ggplot(data = plot_surface, aes(x = Surface, y = logprice)) + 
+
+geom_point(alpha= 0.3, size = 0.8) + 
+  labs(x = expression(paste("Surface", " (", inches^2, ")")), y = "log(price)",
+
+       title = "log(price) vs. Surface (before filtering)") +theme(plot.title = element_text(hjust = 0.5))
+
+
+
+#filter for outliers and zeroes
+
+plot_surface=plot_surface%>%
+
+  filter(!is.na(Surface))%>%
+
+  filter(Surface<8000)%>%
+
+  filter(Surface>0)
+
+
+
+#after filtering
+
+plot_w_filter = ggplot(data = plot_surface, aes(x = Surface, y = logprice)) + 
+
+geom_point(alpha= 0.3, size = 0.8) + 
+
+  labs(x = expression(paste("Surface", " (", inches^2, ")")), y = "log(price)",
+
+       title = "log(price) vs. Surface (after filtering)") +theme(plot.title = element_text(hjust = 0.5))
+
+
+
+#sqrt transformation
+
+plot_sqrt_trans=ggplot(data = plot_surface, aes(x = sqrt(Surface), y = logprice)) + 
+
+geom_point(alpha= 0.3, size = 0.8) + 
+  labs(x = expression(paste(sqrt(Surface), " (", inches^2, ")")), y = "log(price)",
+
+       title = "log(price) vs. sqrt(Surface) ") +theme(plot.title = element_text(hjust = 0.5))
+
+
+
+#log transformation
+
+plot_log_trans=ggplot(data = plot_surface, aes(x = log(Surface), y = logprice)) + 
+
+geom_point(alpha= 0.3, size = 0.8) + 
+  labs(x = expression(paste("log(Surface)", " (", inches^2, ")")), y = "log(price)",
+
+       title = "log(price) vs. log(Surface) ")+theme(plot.title = element_text(hjust = 0.5))
+
+
+
+#plotting
+
+grid.arrange(plot_wo_filter,plot_w_filter,plot_sqrt_trans,plot_log_trans,ncol=2)
+
+```
+
+
+At a first galance, we do not observe any significant linear relationship between the response: "log(price)" and the predictor: "Surface". After we remove some outliers and zeroes(0 surface is not meaningful), we do not achieve much improvement. Therefore, we decide to use transformations on "Surface". First, we take the squre root on "Surface". As we can see, the points are less concentrated and more normally distributed after the tansformation. When using log transformation, we have the distribution of log(Surface) very close to normal distribution. Under log transformation, we still cannot see any obvious linear relationship between the response and the predictor. However, when we perform variable selection under Bayesian information criterion, we would have "Surface", log transformed, included in the final model with a positive coefficient and a relatively small p-value. By intuition, the inclusion of Surface in the model makes sense because paintings with larger surface would probably correpond to more amount of work and more painting materials used and therefore higher prices.
+
+Fourth, we discover serious issue in our previous model:
+
+```{r fig3, fig.width=12, fig.height=8}
+
+lm.test = lm(logprice~Surface + dealer + endbuyer + diff_origin + type_intermed + engraved + mat_recode+school_pntg_recode+paired + lrgfont + lands_sc + othgenre + discauth + othartist+still_life,
+   data = test)
+
+lm.train = lm(logprice~Surface + dealer + endbuyer + diff_origin + type_intermed + engraved + mat_recode+school_pntg_recode+paired + lrgfont + lands_sc + othgenre + discauth + othartist+still_life,
+             data = train)
+
+par(mfrow = c(2,2))
+plot(lm.train, c(1:2))
+plot(lm.test, c(1:2))
+```
+
+As you might remember from the part I, the upper half is the diagnostic plot using our proposed model in trainning data, even thogh from residuals vs fitted plot, residuals are around 0 and variance about the same in all range of expected value; from normal Q-Q plot, there is no indication of violation of normality. However, the lower part reveal different information, as we use the same regression model in the test data, there is a significant problem of overfitting, since all the residuals are bascially lying arond zero, the residuals show no sign of normally distributed, as the model can "perfectly" all the data point in test data. Hence, in our future model, we need to use different approach  to predict validation data.
+
+
+3 Discussion of preliminary model Part I
+
+The overall performance for test data with our PartI model is somewhat misguiding, with the RMSE is 1273, and the coverage is about 93%, the overall performance is masked by the fact that the problem of overfitting(only add predictors that match data behevior in testset), since compared with RMSE in the test data, RMSE in the training set is about 2000; therefore, in order to robustfully predict validation data, we need to come up with a different predictors(or models) in order to corporate differenct instances of behaviors in each data set. Futher development could be use the predictors selected by step function with AIC critiria as well as BMA that can combine different models and lower the variances.
+
+
+4 Development of the final model (10 points)
+
+Discussion: 
+
+ * Data Set Modification:  
+
+As mentioned in the our previous exploratory data analysis part, although we had relatively low testing rmse for the preliminary model we developed in part I, the model actually has an overfitting problem. The model would produce high rmse for the training data set and the diagnosis plots also indicate that the model fits the test data set too closely as all the residuals are close to zero. Therefore, as we were developing our final model, we wanted to balance the performances of our models on the training data set and the testing data set. Although the accuracy of our predictions for test data set is important, we still want to avoid overfitting problem. We started with a full model with all the available predictors selected with some modification, filtering predictors for redundancy, multicollinearity and adding some factor variables indicating if a painting has certain features. For redundant predictors such as "mat", "material" and "materialCat", since they all contain the same information, we only kept "mat" and dropped the other two predictors. For predictors with high multicollinearity with each other, we filtered those less important variables. For example, for "Height_in", "Width_in" and "Surface_Rect", we kept "Surface_Rect" to represent the surface area of the paintings and dropped the other two predictors. We also added new predictors such as "SurfaceNA" to indicate if the surface of a painting is specifies at the auction. Besides these modifications of the training data set, we also needed to handle the predictors having new levels in the testing and validation data sets. For such predictors, since usually the number of occurrences of their elements with new levels are small, for most of the times, we included them to an already existing or newly created category: "other". As mentioned in Part I, we also converted the data types of predictors to appropriate types and perform some transformations on predictors.
+
+ * Predictor Selection  
+ 
+After we have completed our data set modification, we tried various models with all the predictors we have: LASSO, BMA, random forest and BART. Among these models, only LASSO would preform some sort of free variable selection and therefore control the number of predictors while as indicated by the lectures: "BART is similar to Boosting in that the mean function is a sum of trees, but uses a Bayesian approach to control complexity. Trees can be of different sizes and the number of trees can be large without overfitting". Therefore, in order to control the previous overfitting problems, we want to perform some varaible selection based on AIC, BIC or other criteria.  
+
+Under AIC(forward), we have the following predictors:  
+position,dealer , year , diff_origin ,origin_author, origin_cat, endbuyer , 
+    type_intermed , Surface , nfigures , engraved , prevcoll , artistliving,original,othartist,
+    paired , finished , lrgfont,  othgenre , portrait , still_life , figures,relig,landsALL,
+    discauth , school_pntg_recode , SurfaceNA,lands_sc, singlefig, history,allegory, pastorale,
+    other, mat_recode, shape_recode  
+    
+Under BMA(posterior probability larger than 0.5), we have the following predictors:  
+dealer , year , origin_author , origin_cat ,
+                  diff_origin , endbuyer , type_intermed , Surface ,
+                  nfigures , engraved , prevcoll , paired , finished ,
+                  lrgfont , othgenre , portrait , still_life , discauth ,
+                  school_pntg_recode , SurfaceNA , shape_recode  
+                  
+After comparing the training(calculated locally) and testing RMSE(from the leaderboard) for each model mentioned above with full predictors, predictors under AIC and predictors under BIC, we find that the predictors selected  under AIC has the best overall performance.
+
+ * Model Selection  
+ 
+ After we selected the predictors, we would like to compare the models, we used the training and testing rmse summarized in the following table 1:
+ 
+```{r, echo=FALSE}
+table=cbind(c(train.rmse.lasso,train.rmse.BMA,train.rmse.BART,train.rmse.RF),c(1677.637,1527.9337,1423.688,1487.458))
+colnames(table)=c("Training RMSE","Testing RMSE")
+rownames(table)=c("LASSO","BMA","BART","Random Forest")
+kable(table)
+```
+Based on the table(testing RMSEs are form the leaderboard), among the models, BART and Random Forest has relatively low testing RMSE below 1500. However, Random Forest is possibly overfitting the test data with relatively high training RMSE while BART has the lowest training RMSE. Moreover, BART performs better than LASSO and BMA in both training and testing RMSE. Thus, we selected BART with the predictors selected previously as our final model.
+ 
+
+
+```{r}
+#random forest
+library(randomForest)
+rf.nes = randomForest(logprice ~ dealer + year + origin_author + origin_cat +
+                  diff_origin + endbuyer + type_intermed + Surface +
+                  nfigures + engraved + prevcoll + paired + finished +
+                  lrgfont + othgenre + portrait + still_life + discauth +
+                  school_pntg_recode + SurfaceNA + shape_recode, data=train, mtry=4,  importance =TRUE) 
+
+yhat.rf.test= predict(rf.nes ,newdata =test)
+
+yhat.rf.train= predict(rf.nes)
+
+train.rmse.RF = rmse(exp(as.numeric(paintings_train$logprice)), exp(as.numeric(yhat.rf.train)))
+
+#test rmse
+#1423.688
+```
+
+
+```{r}
+library(glmnet)
+###lasso model
+##training
+
+#convert the training set into model matrix
+x = model.matrix(logprice~dealer:year + origin_cat + diff_origin + 
+    artistliving + endbuyer + type_intermed + Surface + nfigures + 
+    engraved + prevcoll + othartist + paired + finished +lrgfont + 
+    landsALL + lands_sc + othgenre + portrait + still_life + 
+    discauth + mat_recode + school_pntg_recode:year + SurfaceNA + 
+    shape_recode
+, train)
+
+#extract y
+y= train$logprice
+
+#define grid
+grid = 10^(seq(10,-2, length=100))
+
+#initial model
+lasso.mod= glmnet(x,y,alpha=1, lambda=grid)
+set.seed(1)
+cv.out = cv.glmnet(x,y, alpha=1)
+
+#extract best lambda
+bestlam=cv.out$lambda.min
+
+#lasso with best lambda
+lasso.mod.best = glmnet(x,y,alpha=1, lambda=bestlam)
+
+#prediction for training dataset
+pred.train.lasso=predict(lasso.mod.best,x)
+
+#calculate the training rmse for LASSO
+train.rmse.lasso=rmse(exp(train$logprice),exp(pred.train.lasso))
+
+
+##testing
+#convert the test data set to model matrix
+test=test%>%
+  mutate(logprice=1)
+x.test = model.matrix(logprice~dealer:year + origin_cat + diff_origin + 
+    artistliving + endbuyer + type_intermed + Surface + nfigures + 
+    engraved + prevcoll + othartist + paired + finished +lrgfont + 
+    landsALL + lands_sc + othgenre + portrait + still_life + 
+    discauth + mat_recode + school_pntg_recode:year + SurfaceNA + 
+    shape_recode
+,test)
+
+#prediction for test data using the lasso model with best lambda
+pred.test=predict(lasso.mod.best, x.test)
+
+#exponentialte to get Price from log(Price)
+pred.test=exp(pred.test)
+
+
+#lasso model test rmse
+#1677.637
 ```
 
 
 ```{r}
 library(BAS)
-df.bas = bas.lm(logprice~Surface + dealer + endbuyer + diff_origin + type_intermed + engraved + mat_recode+school_pntg_recode+paired + lrgfont + lands_sc + othgenre + discauth + othartist+still_life, data=train,
+#BMA
+
+#using Bayesian Model Averaging with g-prior
+df.bas = bas.lm(logprice~dealer + year + origin_author + origin_cat +
+                  diff_origin + endbuyer + type_intermed + Surface +
+                  nfigures + engraved + prevcoll + paired + finished +
+                  lrgfont + othgenre + portrait + still_life + discauth +
+                  school_pntg_recode + SurfaceNA + shape_recode, data=train,
 prior="g-prior", a=nrow(train), modelprior=uniform(),
-method="MCMC", MCMC.iterations = 2000000, thin = 20)
+method="MCMC", MCMC.iterations = 200000, thin = 20)
 
-y.pred.bma = predict(df.bas, newdata = test, estimator = "BMA", se.fit = TRUE, prediction = FALSE)
+#achieve prediction got testing set
+y.test.bma = predict(df.bas, newdata = test, estimator = "BMA", se.fit = TRUE, prediction = FALSE)
 
-predictions = confint(y.pred.bma, parm = "pred")
-predictions = as.data.frame(matrix(predictions, nrow = nrow(test)))
+#achieve prediction got trainiing data
+y.train.bma = predict(df.bas,  estimator = "BMA", se.fit = TRUE, prediction = FALSE)
 
-colnames(predictions) = c("lwr", "upr", "fit")
-predictions = predictions %>% 
-  select(fit, lwr, upr) %>% 
-  mutate(fit = exp(fit),
-         lwr = exp(lwr),
-         upr = exp(upr))
+#calculate training rmse for BMA
+train.rmse.BMA = rmse(exp(as.numeric(paintings_train$logprice)), exp(as.numeric(y.train.bma$fit)))
 
-save(predictions, file = "predict-test.Rdata")
+#test rmse
+#1529.7337
 ```
 
-```{r}
-library(gbm)
-
-boost.logprice = gbm(logprice~., data=train, 
-                distribution="gaussian",n.trees =20000,
-                interaction.depth = 3)
-
-pred = predict(boost.logprice,newdata=test,n.trees=20000,
-                       type="response")
-pred = exp(pred)
-predictions = as.data.frame(pred)
-colnames(predictions) = c("fit")
-save(predictions, file = "predict-test.Rdata")
-
-#training RMSE
-predictions.train = predict(boost.logprice,data=train,n.trees=10000,
-                       type="response") %>% exp() %>% as.data.frame()
-colnames(predictions.train) = c("fit")
-rmse(predictions.train$fit, exp(train$logprice))
-
-load("raw_test.Rdata")
-predictions = predict(boost.logprice, newdata = test, n.trees = 10000) %>% exp() %>% as.data.frame()
-colnames(predictions) = c("fit")
-rmse(predictions$fit, exp(test.raw$logprice))
-
-load("paintings_validation.Rdata")
-load("raw_valid.Rdata")
-validation = clean.new(paintings_validation, NA.omit = FALSE)
-predictions.valid = predict(boost.logprice, newdata = validation, n.trees = 10000) %>% exp() %>% as.data.frame()
-colnames(predictions.valid) = c("fit")
-rmse(predictions.valid$fit, exp(valid$logprice))
-```
 
 ```{r}
-library(caret)
+library(dplyr)
+library(BayesTree)
 
-train.new=train%>%
+#BART
+
+#select predictors from the cleaned train dataset
+x.train.new=train%>%
   dplyr::select(position,dealer , year , diff_origin ,origin_author, origin_cat, endbuyer , 
     type_intermed , Surface , nfigures , engraved , prevcoll , artistliving,original,othartist,
     paired , finished , lrgfont,  othgenre , portrait , still_life , figures,relig,landsALL,
     discauth , school_pntg_recode , SurfaceNA,lands_sc, singlefig, history,allegory, pastorale,
-    other, mat_recode, shape_recode, logprice)
+    other, mat_recode, shape_recode
+)
 
-test.new = test %>% 
-  dplyr::select(position,dealer , year , diff_origin ,origin_author, origin_cat, endbuyer , 
+#select y for fitting BART model 
+y.train.new=train$logprice
+
+#select predictors from the cleaned test dataset
+x.test.new=test%>%
+ dplyr:: select(position,dealer , year , diff_origin ,origin_author, origin_cat, endbuyer , 
     type_intermed , Surface , nfigures , engraved , prevcoll , artistliving,original,othartist,
     paired , finished , lrgfont,  othgenre , portrait , still_life , figures,relig,landsALL,
     discauth , school_pntg_recode , SurfaceNA,lands_sc, singlefig, history,allegory, pastorale,
-    other, mat_recode, shape_recode, logprice)
+    other, mat_recode, shape_recode
 
-cv.ctrl <- trainControl(method = "repeatedcv", repeats = 3,number = 3,
-                        classProbs = TRUE,
-                        allowParallel=T)
+)
 
-xgb.grid <- expand.grid(nrounds = 500,
-                        eta = seq(0.01, 0.31, by = 0.03),
-                        lambda = seq(0.1, 1, by = 0.1),
-                        alpha = 0.5)
-set.seed(45)
-xgb_tune <-train(logprice~.,
-                 data=train.new,
-                 trControl = cv.ctrl,
-                 method="xgbLinear",
-                 tuneGrid=xgb.grid,
-                 gamma = 1,
-                 nthread = 8,
-                 metric = "RMSE",
-                 maximize = FALSE
-    )
-
-predictions = predict(xgb_tune, newdata = test.new) %>% exp() %>% as.data.frame()
-colnames(predictions) = c("fit")
-save(predictions, file = "predict-test.Rdata")
-
-save(xgb_tune, file = "xgb.Rdata")
-```
-
-```{r}
-rmse <- function(y, ypred) {
-  rmse <- sqrt(mean((y - ypred)^2))
-  return(rmse)
-}
-
-#training RMSE
-predictions.train = predict(xgb_tune, data = train) %>% exp() %>% as.data.frame()
-colnames(predictions.train) = c("fit")
-rmse(predictions.train$fit, exp(train$logprice))
-
-load("raw_test.Rdata")
-predictions = predict(xgb_tune, newdata = test) %>% exp() %>% as.data.frame()
-colnames(predictions) = c("fit")
-rmse(predictions$fit, exp(test.raw$logprice))
-
-load("paintings_validation.Rdata")
-load("raw_valid.Rdata")
-validation = clean.new(paintings_validation, NA.omit = FALSE)
-
-validation.new = validation %>% 
-  dplyr::select(position,dealer , year , diff_origin ,origin_author, origin_cat, endbuyer , 
-    type_intermed , Surface , nfigures , engraved , prevcoll , artistliving,original,othartist,
-    paired , finished , lrgfont,  othgenre , portrait , still_life , figures,relig,landsALL,
-    discauth , school_pntg_recode , SurfaceNA,lands_sc, singlefig, history,allegory, pastorale,
-    other, mat_recode, shape_recode, logprice)
-
-predictions.valid = predict(xgb_tune, newdata = validation) %>% exp() %>% as.data.frame()
-colnames(predictions.valid) = c("fit")
-rmse(predictions.valid$fit, exp(valid$logprice))
-```
-
-```{r}
-#lasso
-library(glmnet)
-
-
-train = clean(paintings_train, NA.omit = T)
-test = clean(paintings_test, NA.omit = F)
-
-
-train=train%>%
-  select(logprice, Surface, dealer, endbuyer, diff_origin, type_intermed ,engraved , mat_recode,school_pntg_recode,paired , lrgfont ,lands_sc ,othgenre ,discauth, othartist,still_life,SurfaceNA,peasant,mytho)
-
-test=test%>%
-  select(logprice,Surface, dealer, endbuyer, diff_origin, type_intermed ,engraved , mat_recode,school_pntg_recode,paired , lrgfont ,lands_sc ,othgenre ,discauth, othartist,still_life,SurfaceNA,peasant,mytho)
-
-x = model.matrix(logprice~., train)
-y= train$logprice
-grid = 10^(seq(10,-2, length=100))
-
-lasso.mod= glmnet(x,y,alpha=1, lambda=grid)
-plot(lasso.mod)
+#fit the model
 set.seed(1)
+bart.nes.test=bart(x.train=x.train.new,y.train=y.train.new,x.test=x.test.new,verbose=FALSE)
+set.seed(1)
+bart.nes.train=bart(x.train=x.train.new,y.train=y.train.new,x.test=x.train.new,verbose=FALSE)
 
-cv.out = cv.glmnet(x,y, alpha=1)
-plot(cv.out)
-bestlam=cv.out$lambda.min
-lasso.mod2 = glmnet(x,y,alpha=1, lambda=bestlam)
+#achieve the predicted values for log(price)
+pihat.bart.test=apply(bart.nes.test$yhat.test,2,mean)
+pihat.bart.train=apply(bart.nes.train$yhat.test,2,mean)
 
-test=test%>%
-  mutate(logprice=1)
-x.test = model.matrix(logprice~.,test)
-pred=predict(lasso.mod2, x.test)
+#achieve the predicted values for price by exponentiating log(price)
+y.test=exp(pihat.bart.test)
+y.train=exp(pihat.bart.train)
 
-pred=exp(pred)
-predictions = as.data.frame(pred)
-colnames(predictions) = c("fit")
-save(predictions, file = "predict-test.Rdata")
+#calculate the training rmse for BART
+train.rmse.BART=rmse(exp(train$logprice),y.train)
 
+#residual plot for BART
+residual = scale(pihat.bart.train - train$logprice)
+ggplot(data.frame(cbind(residual,  train$logprice)), aes(x= pihat.bart.train, y=residual)) +
+    geom_point(shape=1)  +
+    ggtitle("Residual Plot for BART Regression") +
+    labs(x="Fitted Value for log(Price)",y="Standardize Residual") 
 
-out=glmnet(x,y,alpha=1, lambda=grid)
-lasso.coef=predict(out, type="coefficients", s=bestlam)
-lasso.coef
-
+#BART test rmse
+#1487.458
 ```
+
+5. Assessment of the final model (25 points)
+
+
+* Model evaluation: 
+
+```{r}
+plot(bart.nes.train)
+pd.election=pdbart(x.train=train[,-7], y.train=train[,7], xind= 10, verbose=FALSE)
+```
+
+
+From the first plot, it shows the uncertanty of the predictions, the uncertainty around the bounday of y(ie. 0 and 10) is larger than the one in the middle.
+Since `pdbart` function is computationally intensive, we only plot one continious variable "Surface"; For its partial dependence plot, it shows parital marginal contribution of "Surface", since the plot doesn't include 0, and the dependence increase the size of surface increase, it shows that this predictors contribute a lot.
+
+* Model testing
+
+As mentioned above, we have tested other models as well, even though Bart lack of interpretation ability, its combine advantage of boosting(decrease residual of previous tree by ) and can increase size of the tree without overfitting. As the similar case with LASSO and random forest, it is hard to obtain confidence interval, although the prediction come with the form of matrix, with 1131 observation and 1000 instances for each observation, if we use confint with c(2.5%, 97.5%), the coverage show us under fit, so we decide to use `BartMachine` instead as suggest in the lecture. Granted, there is no variable selection within Bart process and it provide no interpretation of varible in the end, with the lower RMSE across the board, we finally choose Bart after all.
+
+
+* Model result
+
+The results for the top 10 valued  paintings in the validation data are shown below:
+
+```{r}
+paintings_validation$price_pred = exp(pihat.bart.valid)
+
+part_valid = paintings_validation %>% select(dealer, endbuyer, authorstandard, subject,lrgfont, price_pred) %>% 
+  arrange(desc(price_pred)) %>% .[1:10,]
+
+kable(part_valid)
+```
+
+As the result shows, all top 10 price painting are involved with Dealer R, and the paintings are end up with collecter and dealer, futhemore, dealer devote an additional paragraph when introduce the paintings; all these results show consistency with our assumption in partI EDA anlysis.
 
 6. Conclusion (10 points): must include a summary of results and a discussion of things learned. Optional what would you do if you had more time.
 
@@ -284,4 +543,4 @@ Things learned:
 
  * The first thing we learned is data cleaning. It costed most of our time during first part of our project. Most datasets we will see in real life could be somewhat messy and need a lot of preprocessing before we actually start modeling. Since our train, test, validation sets have the same structure. We coded a function to clean up our dataset to streamline this process. In addition, some categorical variables in test/validation sets have more levels, which we needed to account for and update our cleaning process.
  
- * Secondly, we learned the importance of not overfitting test data. During the first part, we tried hard to get on top ranks on the leaderboard and ended up with test RMSE of around 1270 but train RMSE with more than 2000. It's clear that we overfitted the test data and we do not expect such a model will perform well on the validation data. 
+ * Secondly, we learned the importance of not overfitting test data. During the first part, we tried hard to get on top ranks on the leaderboard and ended up with test RMSE of around 1270 but train RMSE with more than 2000. It's clear that we overfitted the test data and we do not expect such a model will perform well on the validation data. Later we tried other models such as LASSO, Bayesian Model Averaging, trees, random forest, boosting, extreme gradient boosting and Bayesian Additive Regression Tree. Some models run into the issue of overfitting part of the dataset.
