@@ -22,7 +22,7 @@ suppressMessages(library(BAS))
 suppressMessages(library(gbm))
 ```
 
-1. Introduction: Summary of problem and objectives (5 points)
+#Introduction
 
 Late 18th century Paris has witnessed countless number of auctions on fine arts and paintings from countries across Europe. Our project utilizes this dataset from auction in 18th century Paris with details of paintings, auctions, dealers and other third parties involved. 
 
@@ -32,7 +32,7 @@ In addition to that, some variables have a lot of missing values and typos. We w
 
 From the correlation martices, we find some highly-correlated variables, so we decide to not include some of the variables in our model to aviod multicollinearity. Algorithm such as gradient boosting handles highly correlated predictors very well, so models will be robust.
 
-2. Exploratory data analysis (10 points): must include three correctly labeled graphs and an explanation that highlight the most important features that went into your model building.  
+#Exploratory data analysis
 
 ```{r echo=FALSE,warning=FALSE}
 #load the necessary data sets
@@ -289,14 +289,13 @@ plot(lm.test, c(1:2))
 As you might remember from the part I, the upper half is the diagnostic plot using our proposed model in trainning data, even thogh from residuals vs fitted plot, residuals are around 0 and variance about the same in all range of expected value; from normal Q-Q plot, there is no indication of violation of normality. However, the lower part reveal different information, as we use the same regression model in the test data, there is a significant problem of overfitting, since all the residuals are bascially lying arond zero, the residuals show no sign of normally distributed, as the model can "perfectly" all the data point in test data. Hence, in our future model, we need to use different approach  to predict validation data.
 
 
-3 Discussion of preliminary model Part I
+#Discussion of preliminary model Part I
 
 The overall performance for test data with our PartI model is somewhat misguiding, with the RMSE is 1273, and the coverage is about 93%, the overall performance is masked by the fact that the problem of overfitting(only add predictors that match data behevior in testset), since compared with RMSE in the test data, RMSE in the training set is about 2000; therefore, in order to robustfully predict validation data, we need to come up with a different predictors(or models) in order to corporate differenct instances of behaviors in each data set. Futher development could be use the predictors selected by step function with AIC critiria as well as BMA that can combine different models and lower the variances.
 
 
-4 Development of the final model (10 points)
+#Development of the final model
 
-Discussion: 
 
  * Data Set Modification:  
 
@@ -487,10 +486,12 @@ colnames(table)=c("Training RMSE","Testing RMSE")
 rownames(table)=c("LASSO","BMA","BART","Random Forest")
 kable(table)
 ```
+
 Based on the table(testing RMSEs are form the leaderboard), among the models, BART and Random Forest has relatively low testing RMSE below 1500. However, Random Forest is possibly overfitting the test data with relatively high training RMSE while BART has the lowest training RMSE. Moreover, BART performs better than LASSO and BMA in both training and testing RMSE. Thus, we selected BART with the predictors selected previously as our final model. 
 
 
  * Residual Plot and Discussion
+ 
 ```{r}
 #residual plot for BART
 residual = scale(pihat.bart.train - train$logprice)
@@ -502,6 +503,7 @@ ggplot(data.frame(cbind(residual,  train$logprice)), aes(x= pihat.bart.train, y=
 #BART test rmse
 #1487.458
 ```
+
 Discussion:from the Residuals vs. Fitted diagram, we can see no distinct pattern indicating non-linear relationship. Residuals are generally equally distributed around a horizontal line. Therefore, the linear relationship assumption appears to be met.
 
 
@@ -510,12 +512,13 @@ Discussion:from the Residuals vs. Fitted diagram, we can see no distinct pattern
 Note that for the confidence interval, we used "bartMachine". Since "BayesTree" package has a built-in predict function, since it's uses bootstrap method and running long iterations is painfully slow. But small sample size could be inappropirate to construct a prediction interval. Hence we uses "bartMachine" which parallelize its calculation and runs much faster.
 
 
-5. Assessment of the final model (25 points)
+#Assessment of the final model
 
 
 * Model evaluation: 
 
 ```{r}
+par(mfrow = c(1,1))
 plot(bart.nes.train)
 pd.election=pdbart(x.train=train[,-7], y.train=train[,7], xind= 10, verbose=FALSE)
 ```
@@ -556,7 +559,7 @@ pihat.bart.valid=apply(bart.nes.valid$yhat.test,2,mean)
 
 paintings_validation$price_pred = exp(pihat.bart.valid)
 
-part_valid = paintings_validation %>% select(dealer, endbuyer, authorstandard, subject,lrgfont, price_pred) %>% 
+part_valid = paintings_validation %>% select(dealer, endbuyer,lrgfont, price_pred) %>% 
   arrange(desc(price_pred)) %>% .[1:10,]
 
 kable(part_valid)
@@ -564,7 +567,6 @@ kable(part_valid)
 
 As the result shows, all top 10 price painting are involved with Dealer R, and the paintings are end up with collecter and dealer, futhemore, dealer devote an additional paragraph when introduce the paintings; all these results show consistency with our assumption in partI EDA anlysis.
 
-6. Conclusion (10 points): must include a summary of results and a discussion of things learned. Optional what would you do if you had more time.
 
 #Conclusion  
 
