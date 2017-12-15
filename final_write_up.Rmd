@@ -267,6 +267,29 @@ grid.arrange(plot_wo_filter,plot_w_filter,plot_sqrt_trans,plot_log_trans,ncol=2)
 
 At a first galance, we do not observe any significant linear relationship between the response: "log(price)" and the predictor: "Surface". After we remove some outliers and zeroes(0 surface is not meaningful), we do not achieve much improvement. Therefore, we decide to use transformations on "Surface". First, we take the squre root on "Surface". As we can see, the points are less concentrated and more normally distributed after the tansformation. When using log transformation, we have the distribution of log(Surface) very close to normal distribution. Under log transformation, we still cannot see any obvious linear relationship between the response and the predictor. However, when we perform variable selection under Bayesian information criterion, we would have "Surface", log transformed, included in the final model with a positive coefficient and a relatively small p-value. By intuition, the inclusion of Surface in the model makes sense because paintings with larger surface would probably correpond to more amount of work and more painting materials used and therefore higher prices.
 
+Fourth, we discover serious issue in our previous model:
+
+```{r fig3, fig.width=12, fig.height=8}
+
+lm.test = lm(logprice~Surface + dealer + endbuyer + diff_origin + type_intermed + engraved + mat_recode+school_pntg_recode+paired + lrgfont + lands_sc + othgenre + discauth + othartist+still_life,
+   data = test)
+
+lm.train = lm(logprice~Surface + dealer + endbuyer + diff_origin + type_intermed + engraved + mat_recode+school_pntg_recode+paired + lrgfont + lands_sc + othgenre + discauth + othartist+still_life,
+             data = train)
+
+par(mfrow = c(2,2))
+plot(lm.train, c(1:2))
+plot(lm.test, c(1:2))
+```
+
+As you might remember from the part I, the upper half is the diagnostic plot using our proposed model in trainning data, even thogh from residuals vs fitted plot, residuals are around 0 and variance about the same in all range of expected value; from normal Q-Q plot, there is no indication of violation of normality. However, the lower part reveal different information, as we use the same regression model in the test data, there is a significant problem of overfitting, since all the residuals are bascially lying arond zero, the residuals show no sign of normally distributed, as the model can "perfectly" all the data point in test data. Hence, in our future model, we need to use different approach  to predict validation data.
+
+
+3 Discussion of preliminary model Part I
+
+The overall performance for test data with our PartI model is somewhat misguiding, with the RMSE is 1273, and the coverage is about 93%, the overall performance is masked by the fact that the problem of overfitting(only add predictors that match data behevior in testset), since compared with RMSE in the test data, RMSE in the training set is about 2000; therefore, in order to robustfully predict validation data, we need to come up with a different predictors(or models) in order to corporate differenct instances of behaviors in each data set. Futher development could be use the predictors selected by step function with AIC critiria as well as BMA that can combine different models and lower the variances.
+
+
 4 Development of the final model (10 points)
 
 Discussion: 
@@ -470,10 +493,42 @@ ggplot(data.frame(cbind(residual,  train$logprice)), aes(x= pihat.bart.train, y=
     ggtitle("Residual Plot for BART Regression") +
     labs(x="Fitted Value for log(Price)",y="Standardize Residual") 
 
-
 #BART test rmse
 #1487.458
 ```
 
+5. Assessment of the final model (25 points)
+
+
+* Model evaluation: 
+
+```{r}
+plot(bart.nes.train)
+pd.election=pdbart(x.train=train[,-7], y.train=train[,7], xind= 10, verbose=FALSE)
+```
+
+
+From the first plot, it shows the uncertanty of the predictions, the uncertainty around the bounday of y(ie. 0 and 10) is larger than the one in the middle.
+Since `pdbart` function is computationally intensive, we only plot one continious variable "Surface"; For its partial dependence plot, it shows parital marginal contribution of "Surface", since the plot doesn't include 0, and the dependence increase the size of surface increase, it shows that this predictors contribute a lot.
+
+* Model testing
+
+As mentioned above, we have tested other models as well, even though Bart lack of interpretation ability, its combine advantage of boosting(decrease residual of previous tree by ) and can increase size of the tree without overfitting. As the similar case with LASSO and random forest, it is hard to obtain confidence interval, although the prediction come with the form of matrix, with 1131 observation and 1000 instances for each observation, if we use confint with c(2.5%, 97.5%), the coverage show us under fit, so we decide to use `BartMachine` instead as suggest in the lecture. Granted, there is no variable selection within Bart process and it provide no interpretation of varible in the end, with the lower RMSE across the board, we finally choose Bart after all.
+
+
+* Model result
+
+The results for the top 10 valued  paintings in the validation data are shown below:
+
+```{r}
+paintings_validation$price_pred = exp(pihat.bart.valid)
+
+part_valid = paintings_validation %>% select(dealer, endbuyer, authorstandard, subject,lrgfont, price_pred) %>% 
+  arrange(desc(price_pred)) %>% .[1:10,]
+
+kable(part_valid)
+```
+
+As the result shows, all top 10 price painting are involved with Dealer R, and the paintings are end up with collecter and dealer, futhemore, dealer devote an additional paragraph when introduce the paintings; all these results show consistency with our assumption in partI EDA anlysis.
 
 
