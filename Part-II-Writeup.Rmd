@@ -501,6 +501,8 @@ ggplot(data.frame(cbind(residual,  train$logprice)), aes(x= pihat.bart.train, y=
 #1487.458
 ```
 
+Note that for the confidence interval, we used "bartMachine". Since "BayesTree" package has a built-in predict function, since it's uses bootstrap method and running long iterations is painfully slow. But small sample size could be inappropirate to construct a prediction interval. Hence we uses "bartMachine" which parallelize its calculation and runs much faster.
+
 5. Assessment of the final model (25 points)
 
 
@@ -547,4 +549,4 @@ Things learned:
 
  * Last, we learned that compuation time could be a huge problem. Since the dataset have more than 40 variables, fitting models such as XGBoost is not as easy as fitting a linear model. Also, since tree/boosting methods do not have inherent confidence/prediction intervals, we need to take bootstrap samples and it could take a long time. At last we learned a package "bartMachine" which uses Java for parallel processing.
  
- * If we have more time: we would explore more with bartMachine and add a cross-validation method, which could improve our results and make our model more robust. Unfortunately, our laptops have limited RAM and we might need to distribute the compuation on cloud service, such as AWS.
+ * If we have more time: we would explore more with bartMachine and add a cross-validation method, which could improve our results and make our model more robust. Unfortunately, our laptops have limited RAM and we might need to distribute the compuation on cloud service, such as AWS. In addtion, we did not use author as a predictor but intuitively, it could be an important predictor. Since author has too many levels, we could recode this variables according to how celebrated the author was.
