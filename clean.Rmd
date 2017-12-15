@@ -2,7 +2,6 @@
 load("raw_valid.Rdata")
 load("paintings_test.Rdata")
 load("paintings_train.Rdata")
-load("raw_test.Rdata")
 load("paintings_validation.Rdata")
 clean.new = function(df, NA.omit=F){
    df = df %>% 
@@ -427,7 +426,7 @@ x.test.valid=valid.true%>%
 
 )
 set.seed(12)
-bart.valid=bart(x.train=x.train.new,y.train=y.train.new,x.test=x.test.valid,verbose=FALSE,ndpost = 5000)
+bart.valid=bart(x.train=x.train2.new,y.train=y.train2.new,x.test=x.test.valid,verbose=FALSE,ndpost = 5000)
 set.seed(12)
 bart.test=bart(x.train=x.train.new,y.train=y.train.new,x.test=x.test.new,verbose=FALSE,ndpost = 5000)
 set.seed(12)
@@ -467,10 +466,44 @@ save(predictions, file = "predict-test.Rdata")
 
 ```{r}
 library(bartMachine)
-bart.test=bartMachine(X=x.train.new,y=y.train.new,verbose=FALSE)
-ci.test = calc_prediction_intervals(bart.test, x.test.new,pi_conf = 0.95, num_samples_per_data_point = 10000)
-ci.train = calc_prediction_intervals(bart.test, x.train.new,pi_conf = 0.95, num_samples_per_data_point = 10000)
-ci.valid = calc_prediction_intervals(bart.test, x.test.valid,pi_conf = 0.95, num_samples_per_data_point = 10000)
+train2 = rbind(paintings_train,paintings_test)
+train2 = clean.new(train2, NA.omit = FALSE)
+
+x.train2.new=train2%>%
+  dplyr::select(position,dealer , year , diff_origin ,origin_author, origin_cat, endbuyer , 
+    type_intermed , Surface , nfigures , engraved , prevcoll , artistliving,original,othartist,
+    paired , finished , lrgfont,  othgenre , portrait , still_life , figures,relig,landsALL,
+    discauth , school_pntg_recode , SurfaceNA,lands_sc, singlefig, history,allegory, pastorale,
+    other, mat_recode, shape_recode)
+
+y.train2.new=train2$logprice
+
+
+bartMachineCV(X = x.train2.new, y = y.train2.new, 
+num_tree_cvs = c(50, 200), k_cvs = c(2, 3, 5), 
+nu_q_cvs = list(c(3, 0.9), c(3, 0.99), c(10, 0.75)), k_folds = 5, verbose = FALSE)
+
+#bart.test=bartMachine(X=x.train.new,y=y.train.new,verbose=FALSE)
+ci.test = calc_prediction_intervals(bart.test, x.test.new,pi_conf = 0.95, num_samples_per_data_point = 10000) %>% exp()
+ci.train = calc_prediction_intervals(bart.test, x.train.new,pi_conf = 0.95, num_samples_per_data_point = 10000) %>% exp()
+ci.valid = calc_prediction_intervals(bart.test, x.test.valid,pi_conf = 0.95, num_samples_per_data_point = 10000) %>% exp()
+
+load("all_predictions.Rdata")
+#train
+predictions = cbind(all_prediction$y.train, ci.train) %>% as.data.frame()
+colnames(predictions) = c("fit","lwr","upr")
+save(predictions, file = "predict-train.Rdata")
+
+#test
+predictions = cbind(all_prediction$y.test, ci.test) %>% as.data.frame()
+colnames(predictions) = c("fit","lwr","upr")
+save(predictions, file = "predict-test.Rdata")
+
+#valid
+predictions = cbind(all_prediction$y.valid, ci.valid) %>% as.data.frame()
+colnames(predictions) = c("fit","lwr","upr")
+save(predictions, file = "predict-valid.Rdata")
+
 ```
 
 
